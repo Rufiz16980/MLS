@@ -1,0 +1,90 @@
+{
+ "commit": "6bbdfbcdb7bad3e42e33c8bdd2bd68472f542ffc",
+ "course_repo": "https://github.com/ed-aisys/edin-mls-26-autumn",
+ "frozen_files": {
+  "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+  "cuda-tutorial/Makefile": "265e18e52005435df988745b61d5a0d16aae0f67309d2ccc7898dec474005a1a",
+  "hw1-asr/Makefile": "42941e1e0fb40a46d8cfd6e33f9fff60d26a44ba70e3291bc07f4d43cd4ffaff",
+  "hw1-asr/README.md": "3310d61986fcd09bcc42443688a460e389ff867416dfcff8ee6ba7bc4f7a5619",
+  "hw1-asr/benchmark.py": "be6516f1c626eb50761c260788ee0561a73043d3775fb983bea5c803089cbecb",
+  "hw1-asr/csrc/asr_kernels.h": "41ab732721576e45e9463dfc608ced9ecdda4796702db462ae1d2dfeb55f127f",
+  "hw1-asr/csrc/common.cuh": "adddccbeba9058d2b2904fc5bd172e5d02595e3d1cd2c9600153049139ffe4ce",
+  "hw1-asr/csrc/provided.cu": "d9084f2898b953dedaede136b77d4b32f45b609b7e84eb07cb78946b9cd060d2",
+  "hw1-asr/glm_asr_cuda/__init__.py": "608b62885afb583e58bcca58901fdff22179f3d9d5caf928f9658cd2d8fd5eeb",
+  "hw1-asr/glm_asr_cuda/model.py": "c690ed8dbfcb6e9b775d1b2f6da72b0b055fbeb965fd838afaaa0f49bf008379",
+  "hw1-asr/glm_asr_cuda/ops.py": "de224fee6464b5d3288297a7d0ea2eb66e9206d95bea59586349d2979290e906",
+  "hw1-asr/run.sh": "104114fe4e8cf2eadf1979a6fca421f0d2ee77cba5eb587d2eafc0c634605899",
+  "hw1-asr/run_asr.sbatch": "034fad1f850002e8546e3c220ff6337c66f0606d8c418d0f8094a72264364f19",
+  "hw1-asr/setup_env.sh": "78ad92490c6a46e7d6b5995597be943351bb0f4073232eccdacc5b0629cf2397",
+  "hw1-asr/test_audio.txt": "7a9f68b59b885d1214dcc57b45689839b871b15d4460108eb89132c9e8df9708",
+  "hw1-asr/test_audio.wav": "103c3f15eb3715ebc6243d142244128a3ac39b6bfae315baa6b8dc4a8be14aa8",
+  "hw1-asr/tests/test_task1_rope.cu": "4b7f27bdc0a07e3224c386a826b23107defbc4565ea84b9d3e753cbae1adc3d6",
+  "hw1-asr/tests/test_task2_reduce.cu": "1f097da841747c6c5af9b56e7e69a3e1db0f3accfef1c5b98700091497295729",
+  "hw1-asr/tests/test_task3_gemm.cu": "b5300ef2d7b4b086e75ab63942c7b06269677ca85d84f58c5484def83fe92588",
+  "hw1-asr/tests/test_task4_attention.cu": "b215e914035ffbca5b3b539beee2568a1fbffe0a39e8861f758c5879ad345be9",
+  "hw1-asr/tests/test_util.h": "10cf89a54d2762db6c9b251b280edc2839f2ec4eb3f9d728f6a5cc9ab71b9204",
+  "rag/.env.example": "afade19281a600b6d7573b3f7345b3a5300e4587a8558c0b5b9ebd092f235406",
+  "rag/.gitignore": "954f2bae25a5932ef3e277f81eea2d1f469964c227ddf0a787666a45c70aaabc",
+  "rag/requirements.txt": "ddf8a70d9b41af525b0a23d8dc05057e2d5e5dafc6f17a1d7644281d2753a7eb",
+  "rag/scripts/check_setup.py": "c793be4396c9d002d4733a957563f538f8a3cdd179297aabb03ea996d951f4b2",
+  "rag/scripts/evaluate_answers.py": "a8e63038dabfbafd30300fbfaa0a2d537728f75fa8998e894d3bbd77b7651aa3",
+  "rag/scripts/evaluate_rag.py": "8d21ae6aa80b0a9aee2c05ddc0f0931c33381f576a8016869eb3fe145db57f0a",
+  "rag/scripts/generate_answers.py": "a802ebd6ff20c9a11563605cf9f2a638643678b6aacecf061e43bcc9fe2a2ba9",
+  "rag/scripts/install_assets.py": "74e7f45d9af9bfd4efad467b7824496cba2abbf7ad9bede5171b4a9c07cc78d8",
+  "rag/scripts/run_audio_query.py": "b28099894e9b3a140baecec056d5396346011a276ced7e113dbaf1e85c26da0d",
+  "rag/src/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "rag/src/asr_adapter.py": "845a4b343530ea780e32057fba16a1d14566375011a911535e70dfda24721e2a",
+  "rag/src/asr_worker.py": "e2bec126f4e05d88a3f8913504b25733627e3a7b536bebe01aa05f46f7679f59",
+  "rag/src/context_builder.py": "4703c7d182f9b0841c8296e2e9c054adf48e29127be80f8857809b1cab2b4338",
+  "rag/src/data.py": "ba9fbc49844cc3b85b0a300f18aff38b1a88d86218c90625fde2b357a76a42d7",
+  "rag/src/encoder.py": "198d947472f6c7d213d49d52cbbb4f68cb527a53fc395ba1d77f32063f84e5ca",
+  "rag/src/evaluation/__init__.py": "6a70f7ac0d30f61bab6c9a7a3b9ddc06f7c8dd6ad6c3664737381217823e70a7",
+  "rag/src/evaluation/answer_judge.py": "56742a817a041ef0f1964386aefc624287134bb0a121d79fe9d9a7ce854662fd",
+  "rag/src/generator.py": "e0563a295b1c011f7cd35e550255e298a5eb27cce098164a8445f45f6ea737ea",
+  "rag/src/metrics.py": "330dae0c2e68d485e601bdbf0890051caa71fb358b6d26fb9e0cfc1cc2e04470",
+  "rag/src/rag.py": "2bbebbf9be28d12e5b66a0263251c8c704e7f30af079cfbb0ffebc3bf38550fb",
+  "rag/src/retriever.py": "5e3b9f5659199662b64afd5fdcda8e95eef9a041eeca7a0db3e344f678334328",
+  "rag/tests/test_asr_adapter.py": "66fd02d0704bbc81f2be4bf4f353732c182f8e2331be0e7fd48131735ad85edd",
+  "report/format_checker/README.md": "01f6657cae5b411b09f18a64558686938d8d48ec7a1dd51ec21a766485791f20",
+  "report/format_checker/check_report_format.py": "828a858bf395a4e4adf2dac5597ce6398d526832d5c4eac6e33a9cd24c84fffe",
+  "report/format_checker/course_report_rules.json": "ad4eeb2e2b8684c3ead9b13a643319241a32d7943a6626c3572773a4cc37f503",
+  "report/format_checker/report_format_core.py": "713f34244a051aab930c0080f40e22815b14ad72216ab60c2be17d386463a2ed",
+  "report/format_checker/requirements.txt": "36ab08d76cd8a1c0b0d54bf5b3757ad9ed867938bdd4ae701384a986ad59b31f",
+  "report/latex_template/ICLR_2027_STYLE_SOURCE.txt": "d2e013041649e2cc44777af19ecbd5437ad75892649c082a19397e064f3d5869",
+  "report/latex_template/README_OVERLEAF.md": "f386f6ea221e2069fe0a4bccd56fce87e3c94c0a39801fea6343db25ce4aff38",
+  "report/latex_template/fancyhdr.sty": "b56ec4434b9f4607529a4b23dc68ad8d4b94f1f631c8cddaf7da78140d53a5ea",
+  "report/latex_template/iclr2027_conference.bst": "2d67552db7ed38ccfccb5957b52f95656e25c249724761d3cf5f7922ad1844c5",
+  "report/latex_template/iclr2027_conference.sty": "797deef41724e93761426ac0cbcca46279a91cc650dd1f0ce76a4f08d2098ea6",
+  "report/latex_template/math_commands.tex": "90473c4d0542070db244cea73ef962d6cddc5b2a746757e6a40ddf5fdfb90ba9",
+  "report/latex_template/natbib.sty": "88bc70c0e48461934cab5b2accef06b74a8b3ac45ad03ccd3f2a6b7e0d6d530d"
+ },
+ "task_headers": {
+  "hw1-asr/csrc/task1_rope.cu": [
+   "ASR_API int launch_rope(float* q, float* k, const float* inv_freq, int batch, int seq_len, int num_q_heads, int num_k_heads, int head_dim, int rotary_dim, cudaStream_t stream)",
+   "__global__ void rope_kernel(float* q, float* k, const float* inv_freq, int seq_len, int num_q_heads, int num_k_heads, int q_rows, int k_rows, int head_dim, int rotary_dim)"
+  ],
+  "hw1-asr/csrc/task2_reduce.cu": [
+   "ASR_API int launch_layernorm(const float* x, const float* weight, const float* bias, float* y, int rows, int cols, float eps, cudaStream_t stream)",
+   "ASR_API int launch_rmsnorm(const float* x, const float* weight, float* y, int rows, int cols, float eps, cudaStream_t stream)",
+   "ASR_API int launch_softmax(const float* x, float* y, int rows, int cols, cudaStream_t stream)",
+   "__global__ void layernorm_kernel(const float* x, const float* weight, const float* bias, float* y, int cols, float eps)",
+   "__global__ void rmsnorm_kernel(const float* x, const float* weight, float* y, int cols, float eps)",
+   "__global__ void softmax_kernel(const float* x, float* y, int cols)"
+  ],
+  "hw1-asr/csrc/task2_reduce.cuh": [
+   "__device__ __forceinline__ MaxSum maxsum_merge(MaxSum a, MaxSum b)",
+   "__device__ __forceinline__ float block_reduce_max(float v)",
+   "__device__ __forceinline__ float block_reduce_sum(float v)",
+   "__device__ __forceinline__ float warp_reduce_max(float v)",
+   "__device__ __forceinline__ float warp_reduce_sum(float v)"
+  ],
+  "hw1-asr/csrc/task3_gemm.cu": [
+   "ASR_API int launch_linear(const float* x, const float* w, const float* bias, float* y, int M, int N, int K, int act, cudaStream_t stream)",
+   "__global__ void linear_tiled_kernel(const float* x, const float* w, const float* bias, float* y, int M, int N, int K, int act)"
+  ],
+  "hw1-asr/csrc/task4_attention.cu": [
+   "ASR_API int launch_attention(const float* q, const float* k, const float* v, float* out, int batch, int num_heads, int num_kv_heads, int seq_q, int seq_k, int head_dim, float scale, int causal, cudaStream_t stream)",
+   "__global__ void attention_kernel(const float* q, const float* k, const float* v, float* out, int num_heads, int num_kv_heads, int seq_q, int seq_k, int head_dim, float scale, int causal)"
+  ]
+ }
+}

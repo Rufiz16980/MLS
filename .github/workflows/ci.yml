@@ -1,0 +1,39 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard self-test (manifest + overlay task files)
+        run: python3 tools/guard/guard.py selftest
+      - name: Clone pristine course repo at the pinned commit (no LFS)
+        run: |
+          COMMIT=$(python3 -c "import json;print(json.load(open('tools/guard/frozen.json'))['commit'])")
+          git clone --quiet https://github.com/ed-aisys/edin-mls-26-autumn.git course
+          git -C course checkout --quiet "$COMMIT"
+          echo "COURSE_COMMIT=$COMMIT" >> "$GITHUB_ENV"
+      - name: Sync overlay into the course checkout and verify frozen files
+        run: bash scripts/sync_overlay.sh course
+      - name: Negative test (guard must catch tampering)
+        run: |
+          echo "// tamper" >> course/hw1-asr/glm_asr_cuda/ops.py
+          if python3 tools/guard/guard.py check --course course; then echo "guard missed tampering"; exit 1; fi
+          git -C course checkout --quiet -- hw1-asr/glm_asr_cuda/ops.py
+          python3 tools/guard/guard.py check --course course
+      - name: Python syntax
+        run: python3 -m py_compile $(git ls-files '*.py')
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No secrets, course data or weights tracked
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.)|\.(zip|npy|safetensors|wav|pt|bin)$|rag/data/|rag/models/' | grep -v '\.env\.example$'; then
+            echo "forbidden files tracked"; exit 1; fi
+          if git grep -nE 'hf_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|ELM_API_KEY=[^[:space:]]+' -- . ':!.github' ':!tools/guard/pre-commit'; then
+            echo "possible secret committed"; exit 1; fi
