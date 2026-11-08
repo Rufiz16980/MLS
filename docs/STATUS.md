@@ -2,6 +2,14 @@
 
 Last updated: 2026-11-08 (night, end of day 1)
 
+## Verified tonight (cluster, user s3022898 on head node `hastings`)
+
+- Course repo cloned to `~/edin-mls-26-autumn` at `6bbdfbc` (= the commit our guard pins).
+- `rag-assets.zip` (196,521,100 bytes) fetched, sha256 OK, `unzip -tq` no errors; extracted to `~/mls-rag-assets` (492 files, 231 MB apparent). `install_assets.py` NOT yet run on the cluster.
+- Files are `chmod go-rwx`; no real `.env` and no key on the cluster. Cluster shell history has no key.
+- `setup_env.sh` was started with nohup (PID 827793) and was at the Miniconda stage (home 1.3 GB). **NOT verified after logout**: the re-check ssh was run from the laptop straight to `mlp` and timed out (mlp is only reachable through the gateway: `ssh <UUN>@ssh.inf.ed.ac.uk`, then `ssh mlp.inf.ed.ac.uk`). First thing next session: `pgrep -u $USER -fa setup_env.sh; tail -n 5 ~/setup_env.log; du -sh ~`. If it died, re-run `cd ~/edin-mls-26-autumn/hw1-asr && (yes | nohup bash setup_env.sh > ~/setup_env.log 2>&1 &)` (safe to repeat).
+- Also check `stat -c '%a' ~` is 700 or 750; `chmod 700 ~` if not.
+
 ## Where we are
 
 | # | Phase | State |
