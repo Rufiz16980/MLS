@@ -24,11 +24,11 @@ Rubric weights: technical work 30, experimental evidence 30, analysis 30, commun
 - Cost: per-stage latency, prompt size, ELM call count.
 
 ## 5. Results and analysis (about 1.5 pages)
-- Baseline retrieval (practice, k up to 100, exact search): Recall@5/10/20/100 = 0.421/0.480/0.579/0.770, MRR@10 0.489, NDCG@10 0.420 (E07). Diminishing returns in k and a hard ceiling at Recall@100 (0.770) for any reranking or budgeting method.
+- Baseline retrieval (practice, k up to 100, exact search): Recall@5/10/20/100 = 0.421/0.480/0.579/0.770, MRR@10 0.489, NDCG@10 0.420 (E07); dev (125 queries): 0.379/0.475/0.580/0.724, MRR@10 0.460, NDCG@10 0.398 (E08), same shape with a few points of split-to-split noise. Diminishing returns in k and a hard ceiling at Recall@100 (0.770) for any reranking or budgeting method.
 - Everything else PENDING.
 
 ## 6. Limitations (about 0.5 page)
 PENDING. Known already: single baseline node so far (E03); judge is an automated LLM score; the public judge scores the ASR transcript, which cannot detect ASR errors.
 
 ## Evidence index
-E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (see experiment-log.md).
+E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev) (see experiment-log.md).

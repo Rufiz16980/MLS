@@ -191,3 +191,34 @@ Ran 3 tests ... OK
 ```
 
 **What it means.** The retrieval side (24,000 records, 384-dimensional enc_a vectors) is ready on the laptop. Using CPU-only torch keeps the environment at about 1.5 GB instead of 5.8 GB. The ASR line only confirms the source path; real ASR inference was verified separately in E03/E04.
+
+## E08: Baseline retrieval quality on the dev split (final-evaluation split)
+
+**Need.** Dev (125 queries) is kept for final numbers; practice (350) is for tuning. Having the baseline on both shows how much it moves between query sets before we compare variants.
+
+```bash
+python rag/scripts/evaluate_rag.py --device cpu --split dev --transcript-cache rag/.cache/dev_transcripts.jsonl 2>&1 | tail -8
+```
+
+```text
+Aggregate:
+  Recall@5   0.379497
+  Recall@10  0.474595
+  Recall@20  0.579521
+  Recall@100 0.724426
+  MRR@10     0.459708
+  NDCG@10    0.398342
+```
+
+Same conditions as E07 (exact dense retrieval, enc_a on CPU in float16, PyTorch-ASR transcripts from E04, no ELM calls).
+
+| Metric | Practice (350) | Dev (125) | Dev minus practice |
+| --- | --- | --- | --- |
+| Recall@5 | 0.421 | 0.379 | -0.042 |
+| Recall@10 | 0.480 | 0.475 | -0.005 |
+| Recall@20 | 0.579 | 0.580 | +0.001 |
+| Recall@100 | 0.770 | 0.724 | -0.045 |
+| MRR@10 | 0.489 | 0.460 | -0.029 |
+| NDCG@10 | 0.420 | 0.398 | -0.022 |
+
+**What it means.** The two splits agree on the shape: recall rises with depth with diminishing returns, and Recall@100 stays well below 1 (0.72 on dev, so about 28% of relevant records are never retrieved, a ceiling for any reranking or budgeting method). Dev is slightly lower at the top of the ranking (Recall@5 -4.2 points, MRR@10 -2.9) and at k = 100 (-4.5), and equal at k = 10 and 20. With only 125 dev queries and per-query scores that are mostly 0 or 1, sampling noise of a few points is expected, so we do not read these differences as real; PENDING: bootstrap confidence intervals for every reported metric, and state them whenever a variant's gain is of this size. Rule for the report: choose settings on practice, report dev once at the end, and say which split each number comes from.
