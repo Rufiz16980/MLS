@@ -90,7 +90,81 @@ dev: 125 queries, 0 cached, 125 to do
 
 **What it means.** All 475 queries completed without error. Output: `rag/.cache/practice_transcripts.jsonl` and `dev_transcripts.jsonl` (git-ignored; they hold query id, transcript and per-query ASR time with model loading excluded). Everything downstream (retrieval metrics, the k-sweep, answer generation) runs from this cache, so retrieval differences between conditions cannot be caused by ASR noise.
 
-PENDING (not yet seen): line counts (expect 350 and 125), a sample of transcripts, mean per-query ASR time, and a manual check for empty or obviously wrong transcripts. Commands: `wc -l rag/.cache/*.jsonl`, `head -c 600 rag/.cache/practice_transcripts.jsonl`.
+**Verification (cluster, head node, read-only).**
+
+```bash
+cd ~/edin-mls-26-autumn && wc -l rag/.cache/*.jsonl && head -c 600 rag/.cache/practice_transcripts.jsonl
+python3 - <<'EOF'
+import json,statistics as s
+for sp in ("practice","dev"):
+    r=[json.loads(l) for l in open(f"rag/.cache/{sp}_transcripts.jsonl")]
+    t=[x["asr_ms"] for x in r]
+    print(sp,len(r),"empty:",sum(not x["transcript"].strip() for x in r),"asr_ms mean/median/max:",round(s.mean(t)),round(s.median(t)),round(max(t)))
+EOF
+```
+
+```text
+  125 rag/.cache/dev_transcripts.jsonl
+  350 rag/.cache/practice_transcripts.jsonl
+  475 total
+{"query_id": "q_7e9a0f2716c017d2", "transcript": "Understanding sales tax implications when purchasing items in a retail store.", "asr_ms": 2060.8}
+{"query_id": "q_ea0be00eda6ea088", "transcript": "Factors influencing the initial stock price at market opening.", "asr_ms": 1302.2}
+{"query_id": "q_9cd791a970ab648f", "transcript": "Timeline for fund availability when depositing credit card payments.", "asr_ms": 1293.1}
+practice 350 empty: 0 asr_ms mean/median/max: 1555 1467 3845
+dev 125 empty: 0 asr_ms mean/median/max: 1814 1647 13312
+```
+
+**What it means.** All 350 practice and 125 dev queries have a transcript and none is empty. The queries are short finance/consumer questions (about 10 words). Per-query ASR time (model loading excluded, PyTorch kernels, RTX 2080 Ti, node `opencast`): practice mean 1555 ms (median 1467, max 3845); dev mean 1814 ms (median 1647, max 13312). The mean is above the 1215 ms of the 13-token test clip because these transcripts are longer and decoding costs about 94 ms per token (E03). The dev maximum of 13.3 s is a clear outlier (7 times the median): PENDING, check that query's transcript length (a long or runaway generation) versus a transient node effect before using dev timings.
+
+PENDING: transcript quality. The course data has no reference transcripts, so word error rate cannot be computed; quality is only visible indirectly through retrieval (E07).
+
+## E06: Transcripts copied to the laptop
+
+**Need.** RAG experiments run on the laptop (no GPU, ELM key stays off the cluster), so the shared transcript cache must be copied there unchanged.
+
+```bash
+cd <course repo>
+mkdir -p rag/.cache && scp -o ProxyJump=<UUN>@ssh.inf.ed.ac.uk '<UUN>@mlp.inf.ed.ac.uk:edin-mls-26-autumn/rag/.cache/*_transcripts.jsonl' rag/.cache/
+wc -l rag/.cache/*.jsonl
+```
+
+```text
+dev_transcripts.jsonl        100%   18KB
+practice_transcripts.jsonl   100%   49KB
+  125 rag/.cache/dev_transcripts.jsonl
+  350 rag/.cache/practice_transcripts.jsonl
+  475 total
+```
+
+**What it means.** The laptop holds the identical 350 + 125 transcripts (same line counts). `rag/.cache/` is git-ignored, so the cache is not in the repo; PENDING: record SHA-256 of both files in this log so any later run can prove it used the same inputs (`sha256sum rag/.cache/*.jsonl`).
+
+## E07: Baseline retrieval quality (exact dense retrieval, enc_a, practice split)
+
+**Need.** The reference every variant (retrieval depth, evidence budget, reranking, ...) is compared with: retrieval quality on the 350 practice queries from the cached PyTorch-ASR transcripts, using the supplied, unmodified pipeline.
+
+```bash
+source ~/mls-rag-env/bin/activate
+python rag/scripts/evaluate_rag.py --device cpu --split practice --transcript-cache rag/.cache/practice_transcripts.jsonl
+```
+
+```text
+Aggregate:
+  Recall@5   0.421337
+  Recall@10  0.479594
+  Recall@20  0.578524
+  Recall@100 0.769856
+  MRR@10     0.488746
+  NDCG@10    0.420461
+```
+
+Conditions: 350 practice queries, 24,000-record corpus, enc_a encoder on CPU (the library warned the model loaded in float16 on CPU), ASR transcripts from E04, no ELM calls, k_max 100.
+
+**What it means.**
+- With the baseline depth k = 5 the system finds on average 42% of a query's relevant records; doubling to k = 10 adds only 5.8 points (0.480), k = 20 adds 9.9 more (0.579), and k = 100 reaches 0.770. Gains shrink per extra record retrieved, which is exactly the trade-off Plan A studies: each extra retrieved record costs prompt length and generation time.
+- Recall@100 = 0.770 means 23% of relevant records are missed even at depth 100. Anything that re-orders or truncates a top-100 candidate list (reranking, evidence budget) cannot recover those, so 0.770 is the ceiling for such methods. Beating it needs a better query or encoder, not a reranker.
+- MRR@10 = 0.489: the first relevant record sits on average near rank 2 when it is found. NDCG@10 (0.420) is lower than MRR because queries have several relevant records and NDCG also rewards ranking all of them high.
+- The per-query log shows a bimodal pattern: many queries score Recall@10 of exactly 0 or exactly 1 and few sit in between, so the aggregate hides a group of queries that retrieval fails on entirely. PENDING: count them and look at their transcripts to separate ASR errors from encoder or corpus limitations.
+- Limits: this mixes ASR error and retrieval error, since no clean-text control exists (no reference transcripts). The encoder ran in float16 on CPU; PENDING: confirm the numbers match a float32 run so the baseline is reproducible on other machines.
 
 ## E05: RAG setup on the laptop (CPU only)
 

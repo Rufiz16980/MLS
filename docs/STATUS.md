@@ -18,11 +18,22 @@ Last updated: 2026-11-08 (night, end of day 1)
 | 0b | Guard + CI | Built: `tools/guard/` (guard.py, frozen.json from course commit 6bbdfbc), `scripts/sync_overlay.sh`, pre-commit hook, `.github/workflows/ci.yml`. Not yet enabled as a required check. |
 | 1 | ASR kernels Tasks 1-4 | Not started. Pristine task files are in `overlay/hw1-asr/csrc/`. |
 | 2 | ASR experiments | Not started |
-| 3 | RAG baseline | Not started. Needs cached transcripts (see next steps). |
+| 3 | RAG baseline | Retrieval baseline done (E07). Next: 5-query generation + judge with the ELM key, then the full practice split. |
 | 4 | Investigation (Plan A, training-free; B and C backups) | Chosen: A. See PLAN.md |
 | 5-7 | Report, video, packaging | Not started |
 
-## Next steps (in order)
+## Done since the first status
+
+- 475 transcripts made once on the GPU with PyTorch ASR (E04), copied to the laptop (E06). ASR baseline 1215.4 ms (E03).
+- Retrieval baseline on practice: Recall@5/10/20/100 0.421/0.480/0.579/0.770, MRR@10 0.489, NDCG@10 0.420 (E07). Full detail in docs/report/experiment-log.md.
+
+## Next steps (current, supersedes the numbered list below where they differ)
+
+1. Laptop: `generate_from_transcripts.py --limit 5`, judge dry-run, then judge on the 5 (uses the ELM key, a few calls).
+2. Laptop: dev-split retrieval baseline (final numbers) and the retrieval-depth sweep (no ELM cost for retrieval metrics).
+3. GPU (needs a new session): Task 1 RoPE kernel, then Tasks 2-4. Repeat the ASR baseline on a second allocation.
+
+## Next steps (original list)
 
 1. **Cluster, once setup finished:** `conda env list` shows mls-asr; model in `~/.cache/huggingface`. Then `cd ~/edin-mls-26-autumn && python3 ~/MLS/tools/guard/guard.py check --course .` (clone our repo on the cluster too: `git clone https://github.com/Rufiz16980/MLS.git ~/MLS`).
 2. `python rag/scripts/install_assets.py --from-dir ~/mls-rag-assets` using the conda env python (numpy). Do NOT put the ELM key on the cluster.
