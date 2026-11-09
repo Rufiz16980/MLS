@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-08 (night, end of day 1)
+Last updated: 2026-11-09
 
 ## Verified tonight (cluster, user `<UUN>` on the head node)
 
@@ -29,9 +29,10 @@ Last updated: 2026-11-08 (night, end of day 1)
 
 ## Next steps (current, supersedes the numbered list below where they differ)
 
-1. Laptop: `generate_from_transcripts.py --limit 5`, judge dry-run, then judge on the 5 (uses the ELM key, a few calls).
-2. Laptop: dev-split retrieval baseline (final numbers) and the retrieval-depth sweep (no ELM cost for retrieval metrics).
+1. Done: 5-query smoke test (E10), practice and dev sweeps (E09, E11).
+2. Laptop: answer-quality experiment (ELM budget needs the owner's approval): fixed subset of practice queries x k in {1, 5, 20}, generate + judge. Inspect the low-scoring smoke-test queries first.
 3. GPU (needs a new session): Task 1 RoPE kernel, then Tasks 2-4. Repeat the ASR baseline on a second allocation.
+4. Report: keep `docs/report/DRAFT.md` and the experiment log updated after every run.
 
 ## Next steps (original list)
 
