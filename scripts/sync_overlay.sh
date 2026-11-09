@@ -6,6 +6,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 COURSE="${1:-${MLS_COURSE_DIR:-edin-mls-26-autumn}}"
 [ -d "$COURSE/hw1-asr" ] || { echo "not a course checkout: $COURSE" >&2; exit 2; }
+COURSE="$(cd "$COURSE" && pwd)"   # absolute, so it still works after the cd below
 ( cd "$HERE/overlay" && find . -type f | while read -r f; do
     mkdir -p "$COURSE/$(dirname "$f")"; cp "$f" "$COURSE/$f"; done )
 python3 "$HERE/tools/guard/guard.py" check --course "$COURSE"
