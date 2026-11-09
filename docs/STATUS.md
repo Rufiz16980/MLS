@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-08 (night, end of day 1)
 
-## Verified tonight (cluster, user s3022898 on head node `hastings`)
+## Verified tonight (cluster, user `<UUN>` on the head node)
 
 - Course repo cloned to `~/edin-mls-26-autumn` at `6bbdfbc` (= the commit our guard pins).
 - `rag-assets.zip` (196,521,100 bytes) fetched, sha256 OK, `unzip -tq` no errors; extracted to `~/mls-rag-assets` (492 files, 231 MB apparent). `install_assets.py` NOT yet run on the cluster.
