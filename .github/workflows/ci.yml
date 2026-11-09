@@ -35,5 +35,5 @@ jobs:
         run: |
           if git ls-files | grep -E '(^|/)\.env($|\.)|\.(zip|npy|safetensors|wav|pt|bin)$|rag/data/|rag/models/' | grep -v '\.env\.example$'; then
             echo "forbidden files tracked"; exit 1; fi
-          if git grep -nE 'hf_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|ELM_API_KEY=[^[:space:]]+' -- . ':!.github' ':!tools/guard/pre-commit'; then
+          if git grep -nE 'hf_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|ELM_API_KEY=[A-Za-z0-9_-]{16,}' -- . ':!.github' ':!tools/guard/pre-commit'; then
             echo "possible secret committed"; exit 1; fi

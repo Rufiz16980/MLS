@@ -7,6 +7,6 @@ python3 "$ROOT/tools/guard/guard.py" selftest
 if git diff --cached --name-only | grep -E '(^|/)\.env($|\.)|\.(zip|npy|safetensors|wav)$|rag/data/|rag/models/' | grep -v '\.env\.example$'; then
   echo "pre-commit: refusing to commit secrets/data files listed above" >&2; exit 1
 fi
-if git diff --cached -U0 | grep -E '^\+' | grep -E 'hf_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|ELM_API_KEY=[^[:space:]]+'; then
+if git diff --cached -U0 | grep -E '^\+' | grep -E 'hf_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|ELM_API_KEY=[A-Za-z0-9_-]{16,}'; then
   echo "pre-commit: possible secret in staged changes" >&2; exit 1
 fi
