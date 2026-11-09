@@ -8,6 +8,7 @@ Shared notes for the team. Keep this folder up to date; it is the single place f
 | [PLAN.md](PLAN.md) | Plan summary: requirements, frozen files, research plans A/B/C |
 | [setup/gpu-access.md](setup/gpu-access.md) | How to reach the Informatics GPU cluster (each person does this) |
 | [setup/data-install.md](setup/data-install.md) | Install course data and the RAG venv (one script) |
+| [report/README.md](report/README.md) | Report draft and the experiment log (every result with its command) |
 | [setup/cluster-workflow.md](setup/cluster-workflow.md) | What persists on the cluster, per-session routine |
 | [setup/elm-api-key.md](setup/elm-api-key.md) | How to request and handle your own ELM API key |
 | [reference/elm-terms-and-key-agreement.md](reference/elm-terms-and-key-agreement.md) | Saved copy of the ELM terms and key-request agreement |
