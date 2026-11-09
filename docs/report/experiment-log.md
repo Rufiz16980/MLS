@@ -281,3 +281,31 @@ Settings: k=5 (the generator's default), default generation model (`utter-projec
 - Generation takes 2.3 to 6.2 s per query, over 95% of end-to-end time. Embedding and retrieval are tens of milliseconds at most. So if the investigation changes how much evidence is sent to the answer model, generation time is where an effect would show. The `asr_ms` field is 0 because transcripts come from the cache; real ASR time is in E03/E04.
 - The sales-tax answer drifted to business/LLC tax, suggesting off-topic evidence; the 0.000 query (q_9cd791a970ab648f) is the next one to inspect, retrieved records against the judge's reasons.
 - Caveats. The judge scores the ASR transcript as the question, so it cannot detect ASR errors. The 4-10 ms retrieval times here are cold-start and are not comparable with E09's warm 0.45 ms. PENDING: inspect the retrieved records for the low-scoring queries.
+
+## E11: Retrieval-depth sweep on the dev split (n=125)
+
+**Need.** Same sweep as E09 on the final-evaluation split, to check that the practice conclusions (flat retrieval time, growing context, diminishing recall) hold on unseen queries. This is a confirmation run, not for tuning.
+
+```bash
+python rag/extensions/retrieval_sweep.py --split dev --transcripts rag/.cache/dev_transcripts.jsonl
+```
+
+```text
+| k | Recall@k (95% CI) | retrieval ms (median) | context words | context chars |
+| --- | --- | --- | --- | --- |
+| 1 | 0.209 (0.153-0.272) | 0.46 | 183 | 1038 |
+| 2 | 0.279 (0.214-0.351) | 0.45 | 330 | 1875 |
+| 5 | 0.379 (0.311-0.454) | 0.54 | 830 | 4708 |
+| 10 | 0.475 (0.404-0.553) | 0.52 | 1748 | 9908 |
+| 20 | 0.580 (0.515-0.650) | 0.46 | 3598 | 20400 |
+| 50 | 0.677 (0.613-0.742) | 0.45 | 9057 | 51336 |
+| 100 | 0.724 (0.664-0.785) | 0.52 | 18101 | 102473 |
+MRR@10 0.460  NDCG@10 0.398  (n=125)
+```
+
+**What it means.**
+- The shape matches practice (E09): retrieval time stays at about 0.45-0.54 ms for every k, context grows from about 183 to about 18,100 words, and recall rises with diminishing returns.
+- Dev recall is within a few points of practice at every k (for example k=5: 0.379 vs 0.421; k=100: 0.724 vs 0.770). The dev intervals are about twice as wide (about ±7 points, n=125), and every practice value lies inside the corresponding dev interval, so we see no evidence of a real difference between the splits.
+- Recall@100 = 0.724 is the ceiling for any reranking or evidence-budget method on dev. MRR@10 and NDCG@10 equal E08 exactly, a second consistency check on the sweep script.
+- Rule kept: choose settings on practice; report dev once at the end.
+- Caveat. PENDING: the encoder ran in float16 on CPU; confirm float32 agreement.

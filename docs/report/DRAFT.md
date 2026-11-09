@@ -33,4 +33,4 @@ Rubric weights: technical work 30, experimental evidence 30, analysis 30, commun
 PENDING. Known already: single baseline node so far (E03); judge is an automated LLM score; the public judge scores the ASR transcript, which cannot detect ASR errors.
 
 ## Evidence index
-E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev), E09 retrieval-depth sweep (practice), E10 five-query smoke test (see experiment-log.md).
+E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev), E09 retrieval-depth sweep (practice), E10 five-query smoke test, E11 retrieval-depth sweep (dev) (see experiment-log.md).
