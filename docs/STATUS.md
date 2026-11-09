@@ -25,7 +25,7 @@ Last updated: 2026-11-08 (night, end of day 1)
 ## Done since the first status
 
 - 475 transcripts made once on the GPU with PyTorch ASR (E04), copied to the laptop (E06). ASR baseline 1215.4 ms (E03).
-- Retrieval baseline on practice: Recall@5/10/20/100 0.421/0.480/0.579/0.770, MRR@10 0.489, NDCG@10 0.420 (E07). Dev baseline: 0.379/0.475/0.580/0.724, MRR@10 0.460, NDCG@10 0.398 (E08). Full detail in docs/report/experiment-log.md.
+- Retrieval baseline on practice: Recall@5/10/20/100 0.421/0.480/0.579/0.770, MRR@10 0.489, NDCG@10 0.420 (E07). Dev baseline: 0.379/0.475/0.580/0.724, MRR@10 0.460, NDCG@10 0.398 (E08). Retrieval-depth sweep (E09): retrieval time flat at ~0.45 ms for all k; context grows ~180 words per record (17,957 words at k=100); Recall@100 = 0.770. Five-query smoke test (E10): path works, generation is over 95% of end-to-end time. Full detail in docs/report/experiment-log.md.
 
 ## Next steps (current, supersedes the numbered list below where they differ)
 

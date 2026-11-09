@@ -25,10 +25,12 @@ Rubric weights: technical work 30, experimental evidence 30, analysis 30, commun
 
 ## 5. Results and analysis (about 1.5 pages)
 - Baseline retrieval (practice, k up to 100, exact search): Recall@5/10/20/100 = 0.421/0.480/0.579/0.770, MRR@10 0.489, NDCG@10 0.420 (E07); dev (125 queries): 0.379/0.475/0.580/0.724, MRR@10 0.460, NDCG@10 0.398 (E08), same shape with a few points of split-to-split noise. Diminishing returns in k and a hard ceiling at Recall@100 (0.770) for any reranking or budgeting method.
+- Retrieval-depth sweep (practice, E09): retrieval time is flat at about 0.45 ms for k=1..100 (exact search), while context grows from 175 words (k=1) to about 18,000 words (k=100). Recall@1/5/20/50/100 = 0.229/0.421/0.579/0.684/0.770 (CIs about ±4 points). The cost of depth is answer-model input, not retrieval.
+- Smoke test (E10, 5 queries, k=5): the path works end to end; generation is 2.3-6.2 s, over 95% of end-to-end time. Not a result at n=5.
 - Everything else PENDING.
 
 ## 6. Limitations (about 0.5 page)
 PENDING. Known already: single baseline node so far (E03); judge is an automated LLM score; the public judge scores the ASR transcript, which cannot detect ASR errors.
 
 ## Evidence index
-E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev) (see experiment-log.md).
+E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev), E09 retrieval-depth sweep (practice), E10 five-query smoke test (see experiment-log.md).

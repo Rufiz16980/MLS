@@ -222,3 +222,62 @@ Same conditions as E07 (exact dense retrieval, enc_a on CPU in float16, PyTorch-
 | NDCG@10 | 0.420 | 0.398 | -0.022 |
 
 **What it means.** The two splits agree on the shape: recall rises with depth with diminishing returns, and Recall@100 stays well below 1 (0.72 on dev, so about 28% of relevant records are never retrieved, a ceiling for any reranking or budgeting method). Dev is slightly lower at the top of the ranking (Recall@5 -4.2 points, MRR@10 -2.9) and at k = 100 (-4.5), and equal at k = 10 and 20. With only 125 dev queries and per-query scores that are mostly 0 or 1, sampling noise of a few points is expected, so we do not read these differences as real; PENDING: bootstrap confidence intervals for every reported metric, and state them whenever a variant's gain is of this size. Rule for the report: choose settings on practice, report dev once at the end, and say which split each number comes from.
+
+## E09: Retrieval-depth sweep (practice, n=350)
+
+**Need.** The investigation (Plan A) is about how much retrieved evidence to give the answer model. Before spending any ELM calls, measure what each extra retrieved record buys in recall and costs in latency and context size.
+
+```bash
+python rag/extensions/retrieval_sweep.py --split practice --transcripts rag/.cache/practice_transcripts.jsonl
+```
+
+```text
+k    Recall@k (95% CI)       retrieval ms (median)   context words   context chars
+1    0.229 (0.196-0.265)     0.44                    175             987
+2    0.319 (0.281-0.359)     0.45                    354             1999
+5    0.421 (0.378-0.464)     0.45                    897             5054
+10   0.480 (0.436-0.521)     0.45                    1814            10193
+20   0.579 (0.534-0.621)     0.44                    3640            20427
+50   0.684 (0.644-0.723)     0.45                    9076            51003
+100  0.770 (0.732-0.806)     0.45                    17957           100905
+MRR@10 0.489   NDCG@10 0.420
+```
+
+Conditions: exact dense retrieval over 24,000 records, enc_a on CPU in float16, PyTorch-ASR transcripts from E04, bootstrap CIs (2000 resamples, seed 0) over queries, no ELM calls.
+
+**What it means.**
+- Retrieval time is flat at about 0.45 ms for every k, because exact search always compares against all 24,000 vectors. The cost that grows with k is context size: about 180 words per record, from 175 words at k=1 to about 18,000 at k=100. That text is what the answer model must read, so prompt tokens and generation time are the real price of depth.
+- Recall gains diminish per extra word: k=1 to 5 adds 19 points for about 720 extra words, while k=20 to 100 adds 19 points for about 14,000 extra words. Between neighbouring depths the intervals overlap (for example k=5 vs k=10, +5.9 points), so small steps are not distinguishable at n=350.
+- Recall@100 = 0.770 is the ceiling for any reranking or evidence-budget method that only reorders or trims the top 100.
+- MRR@10 and NDCG@10 equal E07, which checks that the sweep script is consistent with the supplied evaluator.
+- Caveats. PENDING: repeat on dev (final numbers only), and confirm float16 vs float32 encoder agreement. Recall is not answer quality; that needs E11 or later.
+
+## E10: Five-query end-to-end smoke test (uses ELM, about 10 calls)
+
+**Need.** Check that the whole path (cached transcript, retrieval, ELM generation, ELM judge) works and see where the time goes, before designing a larger answer-quality experiment. Five queries is a plumbing test, not a result.
+
+```bash
+python rag/extensions/generate_from_transcripts.py --split practice --transcripts rag/.cache/practice_transcripts.jsonl --output rag/results/smoke_k5.jsonl --limit 5
+python rag/scripts/evaluate_answers.py --split practice --candidates rag/results/smoke_k5.jsonl --allow-subset --dry-run
+python rag/scripts/evaluate_answers.py --split practice --candidates rag/results/smoke_k5.jsonl --allow-subset --out-dir rag/results/smoke_judge
+```
+
+```text
+Validated 5/350 practice candidates; no API calls
+judge combined score (0-1) per query:
+q_7e9a0f2716c017d2  0.333
+q_ea0be00eda6ea088  0.583
+q_9cd791a970ab648f  0.000
+q_20e98c45013f6cc6  0.417
+q_e3f1cef46917a2a5  0.417
+per-query timing: asr_ms 0 (cache lookup), embedding 21-54 ms, retrieval 4-10 ms,
+                  generation 2330-6197 ms, end to end 2357-6245 ms
+```
+
+Settings: k=5 (the generator's default), default generation model (`utter-project/EuroLLM-22B-Instruct-2512`, temperature 0.1), judge rubric as supplied, one judge repeat.
+
+**What it means.**
+- The path works. Mean judge score is about 0.35, which is not a finding at n=5.
+- Generation takes 2.3 to 6.2 s per query, over 95% of end-to-end time. Embedding and retrieval are tens of milliseconds at most. So if the investigation changes how much evidence is sent to the answer model, generation time is where an effect would show. The `asr_ms` field is 0 because transcripts come from the cache; real ASR time is in E03/E04.
+- The sales-tax answer drifted to business/LLC tax, suggesting off-topic evidence; the 0.000 query (q_9cd791a970ab648f) is the next one to inspect, retrieved records against the judge's reasons.
+- Caveats. The judge scores the ASR transcript as the question, so it cannot detect ASR errors. The 4-10 ms retrieval times here are cold-start and are not comparable with E09's warm 0.45 ms. PENDING: inspect the retrieved records for the low-scoring queries.
