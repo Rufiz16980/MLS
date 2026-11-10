@@ -25,7 +25,7 @@ Knobs (all default to the values the handout ships with):
 Stages: `check` (make test, compute-sanitizer memcheck and racecheck on the small cases,
 `./run.sh`), `sweep` (every variant, 3 repeats, median), `e2e` (full model with
 `--cuda none`, cumulative `task1..task3`, `all`, and the TILE / ATTN_WARPS variants;
-profiles for none, task1-3 and all), `race` (opt-in).
+profiles for none, task1-3 and all), `best` (full-model runs of tile 32 + 16 attention warps and its parts, plus repeats), `race` (opt-in).
 
 Submit with `sbatch ablation/ablate.sbatch [--stage ...]`, or run inside a GPU shell with
 `python ablation/run_ablations.py --stage ...`.

@@ -4,6 +4,7 @@
     python ablation/run_ablations.py --stage check      # correctness: make test, sanitizer, full model
     python ablation/run_ablations.py --stage sweep      # every variant below: build + test + time
     python ablation/run_ablations.py --stage e2e        # full-model runs with --profile
+    python ablation/run_ablations.py --stage best       # combined best config + its parts, full model (about 10 min)
     python ablation/run_ablations.py --stage race       # barrier-removal ablations under racecheck
     python ablation/run_ablations.py --stage all        # check, sweep, e2e (race is opt-in)
 
@@ -48,6 +49,7 @@ VARIANTS = {
     "attn_w8":          (4, "-DASR_ATTN_WARPS=8", "T4 Try 1"),
     "attn_w16":         (4, "-DASR_ATTN_WARPS=16", "T4 Try 1"),
     "attn_nopad":       (4, "-DASR_K_PAD=0", "T4 Try 2: bank conflicts in k_tile"),
+    "best_t32_w16":     (0, "-DASR_TILE=32 -DASR_ATTN_WARPS=16", "combined: GEMM tile 32 + 16 attention warps"),
 }
 RACE = {  # correctness ablations: expected to break; only run with --stage race
     "race_no_final_sync":  (2, "-DASR_ABL_NO_FINAL_SYNC", "T2 Try 3"),
@@ -63,6 +65,13 @@ E2E = [
     ("all_tile8", "gemm_tile8", "all", False),
     ("all_tile32", "gemm_tile32", "all", False),
     ("all_attn_w8", "attn_w8", "all", False),
+]
+# Extra full-model runs for --stage best (the combination of the best single changes, plus its parts)
+E2E_BEST = [
+    ("all_default_repeat", "default", "all", False),
+    ("all_attn_w16", "attn_w16", "all", False),
+    ("all_tile32_again", "gemm_tile32", "all", False),
+    ("all_best_t32_w16", "best_t32_w16", "all", True),
 ]
 LINE = re.compile(r"^(?P<case>.+?)\s+(?P<status>PASS|FAIL)\s+max_err=(?P<err>\S+)"
                   r"(?:\s+(?P<ms>[\d.]+) ms\s+(?P<speed>.*))?$")
@@ -153,7 +162,7 @@ def stage_check(outdir, jobs):
     return rc == 0 and rc3 == 0
 
 
-def stage_e2e(outdir, jobs, reps):
+def stage_e2e(outdir, jobs, reps, runs=None):
     log = outdir / "e2e.log"
     lib = HW / f"build/sm_{SM}/libasr_kernels.so"
     sh(["make", "-s", f"-j{jobs}", "lib"], log)
@@ -161,7 +170,7 @@ def stage_e2e(outdir, jobs, reps):
     shutil.copy2(lib, backup)
     rows = []
     try:
-        for label, variant, groups, prof in E2E:
+        for label, variant, groups, prof in (runs or E2E):
             if variant and variant != "default":
                 flags = VARIANTS[variant][1]
                 ok, bdir = build(variant, flags, ["libasr_kernels.so"], log, jobs)
@@ -219,7 +228,7 @@ def summary(outdir, results, e2e_rows, gpu_line):
 def main():
     global SM
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("--stage", choices=["check", "sweep", "e2e", "race", "all"], default="all")
+    ap.add_argument("--stage", choices=["check", "sweep", "e2e", "best", "race", "all"], default="all")
     ap.add_argument("--only", help="comma-separated variant names for the sweep (default: all)")
     ap.add_argument("--reps", type=int, default=3, help="repeats of each test binary / model run")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 2)
@@ -265,6 +274,8 @@ def main():
                 w.writerow([name, desc, t, "see log", "", "", "", (fails[-1] if fails else "") + " / " + (summ[-1] if summ else "")])
     if "e2e" in stages:
         e2e_rows = stage_e2e(outdir, a.jobs, a.reps)
+    if "best" in stages:
+        e2e_rows = stage_e2e(outdir, a.jobs, a.reps, E2E_BEST)
     if results or e2e_rows:
         summary(outdir, results, e2e_rows, gpu_line)
         print(f"\nDone. Paste this file:  cat {(outdir / 'summary.md').relative_to(HW)}")
