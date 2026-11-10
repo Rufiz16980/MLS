@@ -16,7 +16,6 @@ sys.path.insert(0, str(ROOT))
 import argparse
 import json
 import statistics as st
-import time
 import numpy as np
 
 
@@ -71,6 +70,8 @@ def main():
         ranked_all.append(retriever.retrieve(v, k=kmax)["record_ids"])
         rels.append(qrels[qid])
     rec = {k: [recall_at_k(r, rel, k) for r, rel in zip(ranked_all, rels)] for k in ks}
+    # hit@k: share of queries with at least one relevant record in the top k (retrieval found something)
+    hit = {k: [float(bool(set(rel) & set(r[:k]))) for r, rel in zip(ranked_all, rels)] for k in ks}
     mrr = [mrr_at_k(r, rel, 10) for r, rel in zip(ranked_all, rels)]
     ndcg = [ndcg_at_k(r, rel, 10) for r, rel in zip(ranked_all, rels)]
     rows = []
@@ -82,7 +83,9 @@ def main():
         words = [sum(len(data.record_text(i).split()) for i in r[:k]) for r in ranked_all]
         chars = [sum(len(data.record_text(i)) for i in r[:k]) for r in ranked_all]
         lo, hi = boot_ci(rec[k], args.bootstrap, args.seed)
+        hlo, hhi = boot_ci(hit[k], args.bootstrap, args.seed)
         rows.append({"k": k, "recall": float(np.mean(rec[k])), "recall_ci95": [lo, hi],
+                     "hit": float(np.mean(hit[k])), "hit_ci95": [hlo, hhi],
                      "latency_ms_median": st.median(lat), "latency_ms_mean": st.mean(lat),
                      "context_words_mean": float(np.mean(words)), "context_chars_mean": float(np.mean(chars))})
     out = {"split": args.split, "n_queries": len(items), "transcripts": str(args.transcripts.name),
@@ -93,11 +96,11 @@ def main():
     path = args.out or ROOT / "results" / f"retrieval_sweep_{args.split}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(out, indent=1))
-    print(f"| k | Recall@k (95% CI) | retrieval ms (median) | context words | context chars |")
-    print("| --- | --- | --- | --- | --- |")
+    print("| k | Recall@k (95% CI) | hit@k (95% CI) | retrieval ms (median) | context words | context chars |")
+    print("| --- | --- | --- | --- | --- | --- |")
     for r in rows:
         print(f"| {r['k']} | {r['recall']:.3f} ({r['recall_ci95'][0]:.3f}-{r['recall_ci95'][1]:.3f}) | "
-              f"{r['latency_ms_median']:.2f} | {r['context_words_mean']:.0f} | {r['context_chars_mean']:.0f} |")
+              f"{r['hit']:.3f} ({r['hit_ci95'][0]:.3f}-{r['hit_ci95'][1]:.3f}) | {r['latency_ms_median']:.2f} | {r['context_words_mean']:.0f} | {r['context_chars_mean']:.0f} |")
     print(f"MRR@10 {out['mrr@10']:.3f}  NDCG@10 {out['ndcg@10']:.3f}  (n={len(items)}) -> {path}")
 
 

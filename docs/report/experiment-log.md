@@ -540,3 +540,22 @@ Paired difference in judge score against k = 1 (same 15 queries):
 - Two different mechanisms keep a query at zero: retrieval misses that more depth cannot repair (they motivate Plan C, ASR and question wording, and Plan B, a better query representation), and answers that do not use evidence that was retrieved, or that the judge cannot credit.
 - The judge scores against gold evidence reconstructed from the relevance labels, so a reasonable answer not backed by that specific record can score 0. This lowers the score ceiling at every k and may be one reason the curve flattens; it must be stated next to every judge number. We have not measured how much of the flattening it explains.
 - PENDING: a per-query table of the first depth at which a relevant record is retrieved (no ELM calls), to separate how much of the gain from k comes from retrieval and how much from generation.
+
+## E14: hit@k, how often retrieval finds anything relevant (practice n = 350, dev n = 125; no ELM calls)
+
+**Need.** Recall@k mixes "found at least one relevant record" with "found all of them". hit@k (the share of queries with at least one relevant record in the top k) separates retrieval coverage from the rest of the pipeline, over all queries rather than the 15 of E12.
+
+**Method.** Computed on the laptop from the cached transcripts, by a one-off script reported to us; the numbers below are as reported and PENDING an independent re-run with `retrieval_sweep.py`, which now prints hit@k with bootstrap intervals (`python rag/extensions/retrieval_sweep.py --split practice --transcripts rag/.cache/practice_transcripts.jsonl`, same for dev). Consistency checks we could do ourselves: hit@k is above Recall@k at every k (E09, E11), and 1 - hit@100 = 0.12 is a plausible gap to Recall@100 = 0.77 / 0.72.
+
+| k | hit@k practice | hit@k dev |
+| --- | --- | --- |
+| 1 | 0.411 | 0.376 |
+| 5 | 0.591 | 0.584 |
+| 20 | 0.737 | 0.768 |
+| 100 | 0.880 | 0.880 |
+
+**What it means.**
+- 59% of queries have a relevant record in the top 5 and 74-77% in the top 20, so going from k = 5 to k = 20 adds about 15 to 18 points of coverage for four times the context. The same diminishing returns as E09, E11 and E12, now on all queries.
+- About 12% of queries have no relevant record in the top 100 on both splits: no choice of k can help them. This ceiling comes from the encoder and the (ASR) query text, and is what Plans B (better query representation) and C (ASR errors) would act on.
+- Reported median rank of the first relevant record: 2, the same on both splits.
+- Together with E13: some of the zero answer scores are retrieval misses (this 12%), the rest come from the generation or judge side.
