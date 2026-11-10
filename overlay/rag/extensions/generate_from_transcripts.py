@@ -34,6 +34,7 @@ def usage_generator():
     """ELMGenerator with the same request, plus the token counts the API returns (response.usage).
     The supplied generator is frozen, so this subclass lives here; the prompt and settings are identical."""
     import time
+    from src.generator import ELMGenerator
 
     class UsageELMGenerator(ELMGenerator):
         def generate(self, prompt):
