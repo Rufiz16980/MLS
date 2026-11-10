@@ -30,7 +30,7 @@ Last updated: 2026-11-09
 ## Next steps (current, supersedes the numbered list below where they differ)
 
 1. Done: 5-query smoke test (E10), practice and dev sweeps (E09, E11).
-2. Laptop: answer-quality experiment (ELM budget needs the owner's approval): fixed subset of practice queries x k in {1, 5, 20}, generate + judge. Inspect the low-scoring smoke-test queries first.
+2. Laptop: answer-quality experiment. First 90 calls done (E12: 15 queries x k in {1, 5, 20}). Next: read the zero-score queries (no ELM calls); extend to 30 queries with `bash rag/extensions/run_answer_quality.sh 30` (+90 calls, needs the owner's yes).
 3. GPU (needs a new session): Task 1 RoPE kernel, then Tasks 2-4. Repeat the ASR baseline on a second allocation.
 4. Report: keep `docs/report/DRAFT.md` and the experiment log updated after every run.
 

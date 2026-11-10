@@ -494,3 +494,32 @@ sbatch ablation/ablate.sbatch --stage best
 - 16 warps give 4.4% end to end (K05 measured 3.2% for 8 warps), after a 34% gain in the encoder micro-benchmark (K04): attention is 16% of the run (K06), so even a large attention speed-up is bounded by that share.
 - Against PyTorch, the best configuration is 2.24x slower than the 1215.4 ms `opencast` baseline of E03 (3.38x against the 806.3 ms `damnii08` baseline), so cuBLAS-class GEMM performance is far from reached; the gap is the GEMM (K06).
 - Limits: 2080 Ti only; the guide says the best tile differs per GPU; tile and warp counts were not searched jointly beyond these two values.
+
+## E12: Answer quality versus retrieval depth (practice, first 15 queries, k = 1, 5, 20)
+
+**Need.** The core of Plan A: does giving the answer model more retrieved evidence improve answer quality, and what does it cost? Same cached transcripts and the supplied prompt, generator settings and judge rubric for every k, so only k changes. 90 ELM calls (15 queries x 3 depths x one generate + one judge).
+
+```bash
+bash rag/extensions/run_answer_quality.sh 15     # generate_from_transcripts.py + evaluate_answers.py per k, then answer_quality_summary.py
+```
+
+Model for both generation and judging: `utter-project/EuroLLM-22B-Instruct-2512` (the course default), temperature 0.1, judge rubric as supplied, one judge repeat.
+
+| k | judge score (95% CI) | Recall@k | context words | prompt tokens | generation ms (median) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0.178 (0.050-0.339) | 0.211 | 163 | 305 | 1804 |
+| 5 | 0.317 (0.150-0.500) | 0.533 | 864 | 1246 | 4463 |
+| 20 | 0.361 (0.167-0.567) | 0.722 | 3517 | 4908 | 6590 |
+
+Paired difference in judge score against k = 1 (same 15 queries):
+
+| k | mean difference (95% CI) | better / worse / tied |
+| --- | --- | --- |
+| 5 | +0.139 (-0.006 to +0.311) | 6 / 2 / 7 |
+| 20 | +0.183 (+0.006 to +0.372) | 6 / 2 / 7 |
+
+**What it means.**
+- Most of the gain comes between k = 1 and k = 5 (+0.139, with an interval that just touches zero). From k = 5 to k = 20 the mean score rises by only 0.044, well inside the noise, while the context grows 4.1x in words, 3.9x in prompt tokens and generation time 1.5x. The direction is "early evidence helps, deeper retrieval costs a lot more for little extra quality"; with 15 queries this is a hint, not a result.
+- Generation time grows much more slowly than prompt size (3.9x tokens, 1.5x time), so a large part of the delay is the answer model writing its output, not reading the context. PENDING: confirm with the completion token counts that were recorded.
+- Recall rises with k as in E09 (0.211, 0.533, 0.722 on these queries), but the judge score rises much less than recall: coverage of the relevant records is not the only thing limiting answer quality. PENDING: read the low-scoring queries (transcripts, retrieved records, judge explanations) to separate retrieval misses, ASR errors and judge strictness. The laptop run reported that several queries score 0 at every depth; not yet verified here.
+- Limits: n = 15 (the first 15 practice queries; their Recall@5 of 0.533 is above the 0.421 of the full practice split, so absolute numbers do not transfer), two comparisons without multiplicity correction, one judge model that is also the generator model, one judge repeat, single run (no repeat of the ELM calls). PENDING: extend to 30 queries (+90 calls, no re-runs), which should narrow the intervals by about 30%.

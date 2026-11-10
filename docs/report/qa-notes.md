@@ -27,3 +27,4 @@ Purpose: after the results are in, this is the study sheet for answering questio
 - Best single changes: GEMM tile 32 (-13%), 16 attention warps (-4%); together -17.2%, additive (K05, K07).
 - Padding and coalescing matter more than most tuning: no padding is up to 2.3x (GEMM) and 4.7x (attention) slower (K03, K04).
 - PyTorch's own time depends on the node's CPU; our kernel time does not. Quote ratios with the node (K05, K07).
+- Answer quality vs retrieval depth (E12, n = 15): most of the gain is from k = 1 to 5; k = 5 to 20 adds little for 4x the context. Generation time grows more slowly than prompt size, so writing the answer dominates the delay. Tentative until extended to 30 queries.
