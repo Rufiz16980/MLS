@@ -309,3 +309,28 @@ MRR@10 0.460  NDCG@10 0.398  (n=125)
 - Recall@100 = 0.724 is the ceiling for any reranking or evidence-budget method on dev. MRR@10 and NDCG@10 equal E08 exactly, a second consistency check on the sweep script.
 - Rule kept: choose settings on practice; report dev once at the end.
 - Caveat. PENDING: the encoder ran in float16 on CPU; confirm float32 agreement.
+
+## K01: Kernel correctness check on the RTX 2080 Ti (Tasks 1-4)
+
+**Need.** Before timing any variant, confirm the four implemented kernels are correct: course tests, memory and race checks, and the full model on our kernels.
+
+```bash
+cd ~/edin-mls-26-autumn/hw1-asr
+sbatch ablation/ablate.sbatch --stage check     # make test, compute-sanitizer memcheck + racecheck (small cases), ./run.sh
+```
+
+```text
+GPU: NVIDIA GeForce RTX 2080 Ti (sm_75), 68 SMs, peak memory bandwidth about 616 GB/s
+Task 1 (RoPE): ALL PASS
+Task 2 (reductions): ALL PASS
+Task 3 (tiled GEMM): ALL PASS
+Task 4 (attention): ALL PASS
+task1..task4 memcheck: ERROR SUMMARY: 0 errors
+task1..task4 racecheck: RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+Time: 3285.7 ms per transcription (+/- 6.1 ms), 252.7 ms per token
+Transcription: Concord returned to its place amidst the tents.
+Accuracy: 100.0%
+Status: PASS
+```
+
+**What it means.** All four kernels pass the course's CPU/cuBLAS-referenced tests, have no out-of-bounds accesses or shared-memory races on the small cases, and transcribe the test recording correctly when the whole model runs on them. Speed is 3285.7 ms per transcription against 1215.4 ms for the PyTorch-only run (E03, same GPU type), about 2.7 times slower. This is expected: the dense layers dominate runtime and our tiled GEMM is simpler than cuBLAS. PENDING: the per-operation profile (sweep and e2e stages) to show where the 2.7x comes from. Caveat: one run on one allocation (node `opencast`); the E03 baseline on that node was also about 22% above the slides' 992.9 ms, so compare ratios within this node, not against the slides.
