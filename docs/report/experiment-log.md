@@ -523,3 +523,20 @@ Paired difference in judge score against k = 1 (same 15 queries):
 - Generation time grows much more slowly than prompt size (3.9x tokens, 1.5x time), so a large part of the delay is the answer model writing its output, not reading the context. PENDING: confirm with the completion token counts that were recorded.
 - Recall rises with k as in E09 (0.211, 0.533, 0.722 on these queries), but the judge score rises much less than recall: coverage of the relevant records is not the only thing limiting answer quality. PENDING: read the low-scoring queries (transcripts, retrieved records, judge explanations) to separate retrieval misses, ASR errors and judge strictness. The laptop run reported that several queries score 0 at every depth; not yet verified here.
 - Limits: n = 15 (the first 15 practice queries; their Recall@5 of 0.533 is above the 0.421 of the full practice split, so absolute numbers do not transfer), two comparisons without multiplicity correction, one judge model that is also the generator model, one judge repeat, single run (no repeat of the ELM calls). PENDING: extend to 30 queries (+90 calls, no re-runs), which should narrow the intervals by about 30%.
+
+## E13: The queries that score zero at every depth (qualitative look, no ELM calls)
+
+**Need.** E12 shows the judge score rising little between k = 5 and k = 20. Before extending the run, look at why some queries stay at 0.
+
+**Method.** Read the saved results of E12 (transcript, rank of the first relevant record, answer, judge explanation) for the queries with score 0 at k = 1, 5 and 20. Three queries qualify. The inspection was done on the laptop from saved files and reported to us; the details below were not re-checked on our side. Three queries are illustrations, not frequencies.
+
+| query type | what happened |
+| --- | --- |
+| sales-tax question | relevant records retrieved (ranks 4 and 13 of the top 20, so rank 4 is already inside k = 5) but the question is vague and the answer stayed generic; the judge wants the specific fact in its gold evidence (a state-specific grocery tax rule) |
+| return-on-investment question | retrieval miss: neither relevant record is in the top 20; a vague transcript gives a weak query embedding |
+| price/earnings-ratio question | retrieval miss; the gold record is vague ("Internet sites, books, academic") and the answer listed concrete, plausible sources, which the judge treats as unsupported |
+
+**What it means.**
+- Two different mechanisms keep a query at zero: retrieval misses that more depth cannot repair (they motivate Plan C, ASR and question wording, and Plan B, a better query representation), and answers that do not use evidence that was retrieved, or that the judge cannot credit.
+- The judge scores against gold evidence reconstructed from the relevance labels, so a reasonable answer not backed by that specific record can score 0. This lowers the score ceiling at every k and may be one reason the curve flattens; it must be stated next to every judge number. We have not measured how much of the flattening it explains.
+- PENDING: a per-query table of the first depth at which a relevant record is retrieved (no ELM calls), to separate how much of the gain from k comes from retrieval and how much from generation.
