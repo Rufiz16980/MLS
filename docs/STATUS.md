@@ -17,7 +17,7 @@ Last updated: 2026-11-09
 | 0 | Access and environment | Laptop done: RAG venv (CPU torch, ~/mls-rag-env), course data installed, ELM key in rag/.env (laptop only), all setup checks PASS. Cluster: access verified (RTX 2080 Ti); course clone + `setup_env.sh` (~20 GB, run in background) started tonight. Check `~/setup_env.log` ends with "Setup finished". |
 | 0b | Guard + CI | Built: `tools/guard/` (guard.py, frozen.json from course commit 6bbdfbc), `scripts/sync_overlay.sh`, pre-commit hook, `.github/workflows/ci.yml`. Not yet enabled as a required check. |
 | 1 | ASR kernels Tasks 1-4 | Implemented in `overlay/hw1-asr/csrc/`; pass all course tests and sanitizers on a 2080 Ti (K01). Ablations done (K02-K04); GEMM is the bottleneck (K05). Still to do: profiles, combined best config, cuBLAS comparison, report questions. |
-| 2 | ASR experiments | Sweep and end-to-end runs done (K02-K05); per-operation profiles and a repeat run pending |
+| 2 | ASR experiments | Sweep, end-to-end, profiles and combined-best runs done (K02-K07); the repeat sweep on a second node (result folder `025702Z`) is not yet compared |
 | 3 | RAG baseline | Retrieval baseline done (E07). Next: 5-query generation + judge with the ELM key, then the full practice split. |
 | 4 | Investigation (Plan A, training-free; B and C backups) | Chosen: A. See PLAN.md |
 | 5-7 | Report, video, packaging | Not started |

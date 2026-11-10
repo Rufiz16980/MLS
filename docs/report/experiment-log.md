@@ -333,7 +333,7 @@ Accuracy: 100.0%
 Status: PASS
 ```
 
-**What it means.** All four kernels pass the course's CPU/cuBLAS-referenced tests, have no out-of-bounds accesses or shared-memory races on the small cases, and transcribe the test recording correctly when the whole model runs on them. Speed is 3285.7 ms per transcription. CORRECTION: an earlier version of this entry compared that with the 1215.4 ms PyTorch run of E03 (2.7x). That is a cross-job comparison and is not valid: the PyTorch-only time depends on the node's CPU and was 806.3 ms in the same-GPU-type run of K05. The valid slowdown is the within-job ratio, 4.1x (K05). Rule for the report: compare variants only inside one job.
+**What it means.** All four kernels pass the course's CPU/cuBLAS-referenced tests, have no out-of-bounds accesses or shared-memory races on the small cases, and transcribe the test recording correctly when the whole model runs on them. Speed is 3285.7 ms per transcription on node `opencast`, against 1215.4 ms for the PyTorch-only run of E03 on the same node (2.7x). K05 gives 4.1x on another node (`damnii08`), because PyTorch's own time depends on the node's host CPU (806.3 ms there) while our kernels' time does not (3285.7, 3288.3 and 3294.0 ms on the two nodes, K05/K07). Rule for the report: quote the slowdown against PyTorch together with its node.
 
 ## K02: Tasks 1 and 2 ablations (RoPE and reductions) on the RTX 2080 Ti
 
@@ -421,7 +421,7 @@ Times in ms. Default throughput: audio encoder 1002 GFLOP/s, text decoder 252 GF
 
 ## K05: End-to-end timing with the kernels switched on one task at a time
 
-**Need.** Micro-benchmarks do not say what matters for a whole transcription. Run the full model with PyTorch only, then add our kernels cumulatively, then three configuration variants. All rows come from one job (one allocation), so they are comparable with each other.
+**Need.** Micro-benchmarks do not say what matters for a whole transcription. Run the full model with PyTorch only, then add our kernels cumulatively, then three configuration variants. All rows come from one job on node `damnii08` (RTX 2080 Ti), so they are comparable with each other.
 
 ```bash
 sbatch ablation/ablate.sbatch --stage e2e       # benchmark.py --cuda <groups> --runs 3
@@ -442,7 +442,7 @@ sbatch ablation/ablate.sbatch --stage e2e       # benchmark.py --cuda <groups> -
 - Our RoPE and reduction kernels give a faster run than PyTorch's (0.87x together). The profile (K06) shows why: PyTorch computes RoPE and RMSNorm as chains of several small unfused operations, while our kernels do each in one pass over the data. Where PyTorch has a single fused kernel (LayerNorm) the two are equal.
 - Our GEMM is the problem: swapping it in adds 2293 ms (3.72x total), an amount equal to 70% of the final all-kernels run time. (The share of kernel time inside the GEMM is in K06.) It reaches 1.4 to 1.9 TFLOP/s in K03; PyTorch uses cuBLAS (tuned library GEMM). Attention adds a further 290 ms over PyTorch's. The profile (K06) puts GEMM at 83.6% and attention at 15.9% of the profiled kernel time in the final configuration.
 - GEMM tile size is the best single change: tile 32 saves 423 ms (13%), tile 8 costs 1704 ms (+52%). 8 attention warps save 104 ms (3.2%). That matches the micro-benchmark (3.15 ms saved per call on the encoder case times 32 encoder layers = 101 ms). So attention is worth much less than the GEMM although its micro-benchmark gain looks bigger.
-- The all-default time here (3288.3 ms) matches the K01 run (3285.7 ms) within 0.1%, so our kernels' timing is reproducible across jobs. The PyTorch-only time is not: 806.3 ms here, 1215.4 ms in E03 on the same GPU type. We treat PyTorch's time as node-dependent (it includes host-side work) and quote only within-job ratios.
+- The all-default time here (3288.3 ms, `damnii08`) matches the K01 run (3285.7 ms, `opencast`) within 0.1%, so our kernels' timing is reproducible across jobs and nodes. The PyTorch-only time is not: 806.3 ms here (`damnii08`), 1215.4 ms in E03 (`opencast`), same GPU type. It includes host-side work (many small operations launched from Python), so it depends on the node's CPU. The ratio to PyTorch is therefore node-specific: 4.1x here, about 2.7x on `opencast` (K01 vs E03).
 - Accuracy is 100% for every configuration, so none of these variants changes the transcription on the test recording.
 - PENDING: the combined best configuration (tile 32 + 16 attention warps, not yet run); a repeat on a second allocation (two duplicate jobs were queued by mistake and can serve as this repeat).
 
@@ -472,3 +472,25 @@ cat ablation/results/<e2e run>/e2e_torch_only.txt ablation/results/<e2e run>/e2e
 - 396 attention calls = 32 encoder layers + 28 decoder layers x 13 generated tokens (364). 13 tokens x 28 layers is also why the linear count is large: the model re-runs the decoder over the whole sequence for every token (no cache of past keys and values).
 - Cross-check, PENDING: ours attention 544.9 ms is larger than 32 x 11.5 ms (encoder, micro-benchmark K04) = 368 ms plus 364 decoder calls at 0.067 ms = 24 ms. About 150 ms is not explained by the micro-benchmarks (the decoder sequences may be longer or have other shapes than the test case, or the profiler adds overhead). We do not use the unexplained part in any claim.
 - PyTorch's softmax (0.3 ms) is faster than ours (1.5 ms) on the vocabulary row, as K02 predicts for a one-block-per-row kernel; irrelevant for the total (13 calls).
+
+## K07: Combined best configuration and repeats (full model, node opencast)
+
+**Need.** K03 and K04 suggested GEMM tile 32 and 16 attention warps. Test them together on the full model, and repeat the default and the single changes to measure job-to-job variation. Node `opencast`, RTX 2080 Ti, one job.
+
+```bash
+sbatch ablation/ablate.sbatch --stage best
+```
+
+| run | change vs default | ms per transcription (+/- ) | ms per token | vs default | accuracy |
+| --- | --- | --- | --- | --- | --- |
+| all_default_repeat | none | 3294.0 (8.3) | 253.4 | 1.000 | 100% |
+| all_attn_w16 | 16 attention warps | 3148.9 (6.9) | 242.2 | 0.956 | 100% |
+| all_tile32_again | GEMM tile 32 | 2876.6 (9.6) | 221.3 | 0.873 | 100% |
+| all_best_t32_w16 | tile 32 + 16 warps | 2728.1 (7.8) | 209.9 | 0.828 | 100% |
+
+**What it means.**
+- The best configuration is 17.2% faster than the default (565.9 ms saved), still with 100% accuracy. The two changes are almost additive: tile 32 saves 417.4 ms and 16 warps save 145.1 ms (sum 562.5 ms, observed 565.9 ms), because they act on different kernels.
+- Repeatability: the default measured 3285.7 ms (K01, `opencast`), 3288.3 ms (K05, `damnii08`) and 3294.0 ms (here, `opencast`), a spread of 0.3%. Tile 32 measured 2865.2 ms (K05, `damnii08`) and 2876.6 ms here, 0.4% apart. Differences between configurations of several percent are therefore real; differences below about 1% are not.
+- 16 warps give 4.4% end to end (K05 measured 3.2% for 8 warps), after a 34% gain in the encoder micro-benchmark (K04): attention is 16% of the run (K06), so even a large attention speed-up is bounded by that share.
+- Against PyTorch, the best configuration is 2.24x slower than the 1215.4 ms `opencast` baseline of E03 (3.38x against the 806.3 ms `damnii08` baseline), so cuBLAS-class GEMM performance is far from reached; the gap is the GEMM (K06).
+- Limits: 2080 Ti only; the guide says the best tile differs per GPU; tile and warp counts were not searched jointly beyond these two values.
