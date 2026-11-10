@@ -439,9 +439,36 @@ sbatch ablation/ablate.sbatch --stage e2e       # benchmark.py --cuda <groups> -
 | all_attn_w8 | all, 8 attention warps | 3184.0 (7.0) | 244.9 | 3.95x | 100% |
 
 **What it means.**
-- Our RoPE and reduction kernels are faster than PyTorch's (0.87x together): they are memory-bound element-wise and row-wise operations, which a hand-written kernel handles as well as a library does, with fewer launches.
-- Our GEMM is the problem: swapping it in adds 2293 ms (3.72x total), an amount equal to 70% of the final all-kernels run time. (The share of run time spent inside the GEMM kernels is PENDING, from the profiles.) It reaches 1.4 to 1.9 TFLOP/s in K03; PyTorch uses cuBLAS (tuned library GEMM). Attention adds a further 290 ms over PyTorch's.
+- Our RoPE and reduction kernels give a faster run than PyTorch's (0.87x together). The profile (K06) shows why: PyTorch computes RoPE and RMSNorm as chains of several small unfused operations, while our kernels do each in one pass over the data. Where PyTorch has a single fused kernel (LayerNorm) the two are equal.
+- Our GEMM is the problem: swapping it in adds 2293 ms (3.72x total), an amount equal to 70% of the final all-kernels run time. (The share of kernel time inside the GEMM is in K06.) It reaches 1.4 to 1.9 TFLOP/s in K03; PyTorch uses cuBLAS (tuned library GEMM). Attention adds a further 290 ms over PyTorch's. The profile (K06) puts GEMM at 83.6% and attention at 15.9% of the profiled kernel time in the final configuration.
 - GEMM tile size is the best single change: tile 32 saves 423 ms (13%), tile 8 costs 1704 ms (+52%). 8 attention warps save 104 ms (3.2%). That matches the micro-benchmark (3.15 ms saved per call on the encoder case times 32 encoder layers = 101 ms). So attention is worth much less than the GEMM although its micro-benchmark gain looks bigger.
 - The all-default time here (3288.3 ms) matches the K01 run (3285.7 ms) within 0.1%, so our kernels' timing is reproducible across jobs. The PyTorch-only time is not: 806.3 ms here, 1215.4 ms in E03 on the same GPU type. We treat PyTorch's time as node-dependent (it includes host-side work) and quote only within-job ratios.
 - Accuracy is 100% for every configuration, so none of these variants changes the transcription on the test recording.
-- PENDING: the per-operation profiles (`--profile`) saved for torch_only, task1-3 and all_default, which show where the time goes by operation; the combined best configuration (tile 32 + 16 attention warps, not yet run); a repeat on a second allocation (two duplicate jobs were queued by mistake and can serve as this repeat).
+- PENDING: the combined best configuration (tile 32 + 16 attention warps, not yet run); a repeat on a second allocation (two duplicate jobs were queued by mistake and can serve as this repeat).
+
+## K06: Where the time goes, per operation (profiles from the K05 runs)
+
+**Need.** K05 gives whole-run times; the handout also asks for the `--profile` output. This shows which operation takes the time, with PyTorch only and with all four tasks on our kernels.
+
+```bash
+cat ablation/results/<e2e run>/e2e_torch_only.txt ablation/results/<e2e run>/e2e_all_default.txt     # produced by: benchmark.py --profile
+```
+
+| operation | calls | PyTorch only: ms (share) | our kernels: ms (share) |
+| --- | --- | --- | --- |
+| linear (GEMM, Task 3) | 2757 | 568.0 (47.6%) | 2871.9 (83.6%) |
+| attention (Task 4) | 396 | 267.8 (22.5%) | 544.9 (15.9%) |
+| rope (Task 1) | 396 | 298.7 (25.0%) | 3.0 (0.1%) |
+| rmsnorm (Task 2) | 741 | 50.0 (4.2%) | 6.6 (0.2%) |
+| layernorm (Task 2) | 65 | 2.6 (0.2%) | 2.4 (0.1%) |
+| softmax (Task 2) | 13 | 0.3 (0.0%) | 1.5 (0.0%) |
+| silu_mul, embedding, im2col (provided) | 364 / 13 / 2 | 5.2 (0.4%) | 5.2 (0.2%) |
+| **sum of profiled kernel times** | | 1192.6 | 3435.7 |
+| wall-clock time per transcription (K05) | | 806.3 | 3288.3 |
+
+**What it means.**
+- With our kernels the run is almost entirely GEMM (83.6%) and attention (15.9%). RoPE, RMSNorm, LayerNorm and softmax together are 0.5% of the time, so tuning them (K02) cannot change the end-to-end time; their value is in the report's explanations, not in speed. The lever for speed is the GEMM.
+- The profile times are not additive with the wall-clock times: profiling times each operation separately, and the sum (1192.6 ms) is 48% above the wall-clock time (806.3 ms) for PyTorch, which runs many tiny operations (RoPE alone costs 0.75 ms per call in PyTorch). For our kernels the two agree within 4.5% (3435.7 vs 3288.3 ms). We therefore use the profile for shares and ordering and the wall clock for totals. Entering both here is deliberate: the handout asks for the profile output.
+- 396 attention calls = 32 encoder layers + 28 decoder layers x 13 generated tokens (364). 13 tokens x 28 layers is also why the linear count is large: the model re-runs the decoder over the whole sequence for every token (no cache of past keys and values).
+- Cross-check, PENDING: ours attention 544.9 ms is larger than 32 x 11.5 ms (encoder, micro-benchmark K04) = 368 ms plus 364 decoder calls at 0.067 ms = 24 ms. About 150 ms is not explained by the micro-benchmarks (the decoder sequences may be longer or have other shapes than the test case, or the profiler adds overhead). We do not use the unexplained part in any claim.
+- PyTorch's softmax (0.3 ms) is faster than ours (1.5 ms) on the vocabulary row, as K02 predicts for a one-block-per-row kernel; irrelevant for the total (13 calls).

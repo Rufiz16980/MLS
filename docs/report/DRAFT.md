@@ -33,7 +33,7 @@ Rubric weights: technical work 30, experimental evidence 30, analysis 30, commun
 PENDING. Known already: single baseline node so far (E03); judge is an automated LLM score; the public judge scores the ASR transcript, which cannot detect ASR errors.
 
 ## Evidence index
-E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev), E09 retrieval-depth sweep (practice), E10 five-query smoke test, E11 retrieval-depth sweep (dev), K01 kernel correctness, K02-K04 kernel ablations (Tasks 1-4), K05 end-to-end timing (see experiment-log.md).
+E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev), E09 retrieval-depth sweep (practice), E10 five-query smoke test, E11 retrieval-depth sweep (dev), K01 kernel correctness, K02-K04 kernel ablations (Tasks 1-4), K05 end-to-end timing, K06 per-operation profile (see experiment-log.md).
 
 ## Kernel results so far (ASR part; RTX 2080 Ti; all numbers within one job, see K01-K05)
 
@@ -43,3 +43,4 @@ E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verificatio
 - Shared-memory padding is essential: no padding is 1.7-2.3x slower in GEMM and 4.7x slower in attention, from bank conflicts (K03, K04).
 - Attention gains from more queries per block (fewer key loads) in the micro-benchmark (13.7x from 1 to 16 warps), but only 3% end to end at 8 warps (K04, K05).
 - Reductions: best block size depends on shape; one-read softmax and shuffle reductions beat the textbook and atomic versions (K02).
+- Profile (K06): with our kernels GEMM is 83.6% and attention 15.9% of kernel time; RoPE, norms and softmax together 0.5%. PyTorch's own RoPE (25%) and RMSNorm are slow chains of small ops, hence our kernels beat them.
