@@ -21,7 +21,11 @@
 #include "asr_kernels.h"
 #include "common.cuh"
 
-constexpr int ROPE_THREADS = 256;
+// Tuning constant. Override at build time for ablations: NVCCFLAGS="... -DASR_ROPE_THREADS=128"
+#ifndef ASR_ROPE_THREADS
+#define ASR_ROPE_THREADS 256
+#endif
+constexpr int ROPE_THREADS = ASR_ROPE_THREADS;
 
 __global__ void rope_kernel(float* q, float* k, const float* inv_freq, int seq_len,
                             int num_q_heads, int num_k_heads, int q_rows, int k_rows,
@@ -34,7 +38,8 @@ __global__ void rope_kernel(float* q, float* k, const float* inv_freq, int seq_l
   // ======================== BLANK 1.1 =========================
   // Set idx to this thread's global index. Threads without a pair
   // (q_pairs + k_pairs in total) do nothing.
-  // YOUR CODE HERE
+  idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= q_pairs + k_pairs) return;  // no pair for this thread (no barrier follows)
   // ============================================================
 
   float* x = q;               // the tensor this thread works on
@@ -42,7 +47,11 @@ __global__ void rope_kernel(float* q, float* k, const float* inv_freq, int seq_l
   // ======================== BLANK 1.2 =========================
   // Threads past q's pairs work on k: make x, num_heads and idx describe the
   // tensor this thread works on, with idx counting from 0 inside it.
-  // YOUR CODE HERE
+  if (idx >= q_pairs) {  // past q's pairs: this thread rotates part of k
+    x = k;
+    num_heads = num_k_heads;
+    idx -= q_pairs;
+  }
   // ============================================================
 
   int row = 0;  // which row (one head of one token) of x
@@ -50,13 +59,22 @@ __global__ void rope_kernel(float* q, float* k, const float* inv_freq, int seq_l
   int pos = 0;  // position of the token this row belongs to
   // ======================== BLANK 1.3 =========================
   // Set row, i (the pair inside the row) and pos (the token position of the row).
-  // YOUR CODE HERE
+  // A row is one head of one token: row = (b * seq_len + s) * num_heads + head.
+  row = idx / half;
+  i = idx - row * half;               // idx % half without a second division
+  pos = (row / num_heads) % seq_len;  // token index s inside its sequence
   // ============================================================
 
   float* v = x + static_cast<size_t>(row) * head_dim;  // start of this row
   // ======================== BLANK 1.4 =========================
   // Rotate the pair (v[i], v[i + half]) in place.
-  // YOUR CODE HERE
+  const float angle = static_cast<float>(pos) * inv_freq[i];
+  float s, c;
+  sincosf(angle, &s, &c);  // one call for both; becomes __sinf/__cosf under --use_fast_math
+  const float a = v[i];
+  const float b = v[i + half];
+  v[i] = a * c - b * s;
+  v[i + half] = b * c + a * s;
   // ============================================================
 }
 

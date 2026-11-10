@@ -11,7 +11,11 @@
 #include "asr_kernels.h"
 #include "task2_reduce.cuh"
 
-constexpr int REDUCE_THREADS = 256;  // threads per block: a multiple of 32, at most 1024
+// Tuning constant. Override at build time for ablations: -DASR_REDUCE_THREADS=512
+#ifndef ASR_REDUCE_THREADS
+#define ASR_REDUCE_THREADS 256
+#endif
+constexpr int REDUCE_THREADS = ASR_REDUCE_THREADS;  // threads per block: a multiple of 32, at most 1024
 
 // Worked example. LayerNorm: y = (x - mean) / sqrt(var + eps) * weight + bias
 __global__ void layernorm_kernel(const float* x, const float* weight, const float* bias,
@@ -42,7 +46,22 @@ __global__ void rmsnorm_kernel(const float* x, const float* weight, float* y, in
 
   // ======================== BLANK 2.5 =========================
   // RMSNorm of this row: y = x / sqrt(mean(x^2) + eps) * weight.
-  // YOUR CODE HERE
+  float sq = 0.0f;  // this thread's share of sum(x^2)
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) sq += xr[c] * xr[c];
+  #ifdef ASR_ABL_RMS_ATOMIC
+  // Ablation (Try this 4): every thread atomically adds into one shared float
+  // instead of the shuffle-based block reduction.
+  __shared__ float total;
+  if (threadIdx.x == 0) total = 0.0f;
+  __syncthreads();
+  atomicAdd(&total, sq);
+  __syncthreads();
+  const float sum_sq = total;
+  #else
+  const float sum_sq = block_reduce_sum(sq);
+  #endif
+  const float rstd = rsqrtf(sum_sq / cols + eps);  // 1 / sqrt(mean(x^2) + eps)
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) yr[c] = xr[c] * rstd * weight[c];
   // ============================================================
 }
 
@@ -58,12 +77,29 @@ __global__ void softmax_kernel(const float* x, float* y, int cols) {
   // ======================== BLANK 2.6 =========================
   // Pass 1: set row_max and row_sum (the sum of exp(x - row_max) over the row),
   // reading x only once, with MaxSum.
-  // YOUR CODE HERE
+  #ifdef ASR_ABL_SOFTMAX_3PASS
+  // Ablation: the textbook version reads the row once for the max and once more for the sum.
+  float mx = -INFINITY;
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) mx = fmaxf(mx, xr[c]);
+  row_max = block_reduce_max(mx);
+  float sm = 0.0f;
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) sm += expf(xr[c] - row_max);
+  row_sum = block_reduce_sum(sm);
+  #else
+  // One read: each thread keeps the MaxSum summary of its own columns ...
+  MaxSum t = {-INFINITY, 0.0f};
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) t = maxsum_merge(t, MaxSum{xr[c], 1.0f});
+  // ... then the block agrees on the max and rescales every thread's sum to it.
+  // A thread with no columns has {-inf, 0}: its term is 0 * exp(-inf) = 0.
+  row_max = block_reduce_max(t.m);
+  row_sum = block_reduce_sum(t.l * expf(t.m - row_max));
+  #endif
   // ============================================================
 
   // ======================== BLANK 2.7 =========================
   // Pass 2: y = exp(x - row_max) / row_sum.
-  // YOUR CODE HERE
+  const float inv_sum = 1.0f / row_sum;
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) yr[c] = expf(xr[c] - row_max) * inv_sum;
   // ============================================================
 }
 

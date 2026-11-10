@@ -16,12 +16,19 @@
 #include "asr_kernels.h"
 #include "common.cuh"
 
-constexpr int TILE = 16;  // try 8 or 32 (32 x 32 = 1024 threads, the maximum per block)
+// Tuning constants. Override at build time for ablations: -DASR_TILE=32, -DASR_WS_PAD=0
+#ifndef ASR_TILE
+#define ASR_TILE 16
+#endif
+#ifndef ASR_WS_PAD
+#define ASR_WS_PAD 1
+#endif
+constexpr int TILE = ASR_TILE;  // try 8 or 32 (32 x 32 = 1024 threads, the maximum per block)
 
 __global__ void linear_tiled_kernel(const float* x, const float* w, const float* bias,
                                     float* y, int M, int N, int K, int act) {
   __shared__ float xs[TILE][TILE];      // xs[m][k]: rows of x for this block
-  __shared__ float ws[TILE][TILE + 1];  // ws[n][k]: rows of w for this block (+1: see Try this)
+  __shared__ float ws[TILE][TILE + ASR_WS_PAD];  // ws[n][k]: rows of w for this block (+1: see Try this)
 
   const int tx = threadIdx.x;
   const int ty = threadIdx.y;
@@ -32,26 +39,52 @@ __global__ void linear_tiled_kernel(const float* x, const float* w, const float*
   for (int k0 = 0; k0 < K; k0 += TILE) {
     // ======================== BLANK 3.1 =========================
     // Load this thread's element of the x tile into xs. Use 0 outside x.
-    // YOUR CODE HERE
+    {
+      const int kx = k0 + tx;  // column of x this thread loads
+      xs[ty][tx] = (row < M && kx < K) ? x[static_cast<size_t>(row) * K + kx] : 0.0f;
+    }
     // ============================================================
 
     // ======================== BLANK 3.2 =========================
     // Load this thread's element of the w tile, so that ws[n][k] holds
     // w[blockIdx.x * TILE + n][k0 + k]. Use 0 outside w. Threads with consecutive
     // tx must read consecutive addresses of w.
-    // YOUR CODE HERE
+    {
+    #ifdef ASR_ABL_W_STRIDED
+      // Ablation (Try this 3), the lecture's way of loading B: thread (ty, tx) loads
+      // w row (n = tx), element k = ty, so neighbouring threads read addresses K floats apart.
+      const int wn = blockIdx.x * TILE + tx;
+      const int wk = k0 + ty;
+      ws[tx][ty] = (wn < N && wk < K) ? w[static_cast<size_t>(wn) * K + wk] : 0.0f;
+    #else
+      // Coalesced: thread (ty, tx) loads w row n = ty, element k = tx, so a warp's
+      // consecutive tx read consecutive addresses of one row of w.
+      const int wn = blockIdx.x * TILE + ty;
+      const int wk = k0 + tx;
+      ws[ty][tx] = (wn < N && wk < K) ? w[static_cast<size_t>(wn) * K + wk] : 0.0f;
+    #endif
+    }
+    __syncthreads();  // both tiles are complete before anyone reads them
     // ============================================================
 
     // ======================== BLANK 3.3 =========================
     // Add this K step's contribution to acc.
-    // YOUR CODE HERE
+    #pragma unroll
+    for (int kk = 0; kk < TILE; ++kk) acc += xs[ty][kk] * ws[tx][kk];  // x[row][k] * w[col][k]
+    #ifndef ASR_ABL_NO_SECOND_SYNC  // ablation only (Try this 4): removes the barrier, expect a race
+    __syncthreads();  // everyone is done with this tile before the next loop iteration overwrites it
+    #endif
     // ============================================================
   }
 
   // ======================== BLANK 3.4 =========================
   // Epilogue: for outputs inside y, add bias[col] (bias may be nullptr), apply
   // gelu() when act == ACT_GELU, and store.
-  // YOUR CODE HERE
+  if (row < M && col < N) {
+    float r = acc + (bias != nullptr ? bias[col] : 0.0f);
+    if (act == ACT_GELU) r = gelu(r);
+    y[static_cast<size_t>(row) * N + col] = r;
+  }
   // ============================================================
 }
 
