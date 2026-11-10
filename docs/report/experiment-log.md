@@ -333,4 +333,115 @@ Accuracy: 100.0%
 Status: PASS
 ```
 
-**What it means.** All four kernels pass the course's CPU/cuBLAS-referenced tests, have no out-of-bounds accesses or shared-memory races on the small cases, and transcribe the test recording correctly when the whole model runs on them. Speed is 3285.7 ms per transcription against 1215.4 ms for the PyTorch-only run (E03, same GPU type), about 2.7 times slower. This is expected: the dense layers dominate runtime and our tiled GEMM is simpler than cuBLAS. PENDING: the per-operation profile (sweep and e2e stages) to show where the 2.7x comes from. Caveat: one run on one allocation (node `opencast`); the E03 baseline on that node was also about 22% above the slides' 992.9 ms, so compare ratios within this node, not against the slides.
+**What it means.** All four kernels pass the course's CPU/cuBLAS-referenced tests, have no out-of-bounds accesses or shared-memory races on the small cases, and transcribe the test recording correctly when the whole model runs on them. Speed is 3285.7 ms per transcription. CORRECTION: an earlier version of this entry compared that with the 1215.4 ms PyTorch run of E03 (2.7x). That is a cross-job comparison and is not valid: the PyTorch-only time depends on the node's CPU and was 806.3 ms in the same-GPU-type run of K05. The valid slowdown is the within-job ratio, 4.1x (K05). Rule for the report: compare variants only inside one job.
+
+## K02: Tasks 1 and 2 ablations (RoPE and reductions) on the RTX 2080 Ti
+
+**Need.** The guides' "Try this" items for Tasks 1 and 2: block size, fast maths, atomic instead of shuffle reduction, one-pass versus textbook softmax. Each variant is the same file built with one `-D` flag (listed in `hw1-asr/ablation/README.md`); correctness is checked by the same tests, and every number is the median of 3 runs of the course test, in ms per call.
+
+```bash
+sbatch ablation/ablate.sbatch --stage sweep      # all variants; summary in ablation/results/<time>/summary.md
+```
+
+Task 1, RoPE (`ROPE_THREADS`; default 256):
+
+| case | 32 | 64 | 128 | **256** | 512 | 1024 | fast_math |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| audio encoder (partial, 32/64) | 0.038 | 0.031 | 0.031 | **0.031** | 0.031 | 0.033 | FAIL |
+| text decoder (GQA 16/4, full) | 0.005 | 0.004 | 0.004 | **0.004** | 0.004 | 0.005 | 0.004 |
+
+Default speed: audio encoder 493.6 GB/s (80% of the 616 GB/s peak), text decoder 319.5 GB/s (52%). The tiny cases (2 x 3 tokens) take 0.003 ms in every variant.
+
+Task 2, reductions (`REDUCE_THREADS`; default 256), selected cases:
+
+| case | 32 | 64 | 128 | **256** | 512 | 1024 | atomic RMS | 3-pass softmax |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| rmsnorm, text decoder | 0.028 | 0.015 | 0.010 | **0.006** | 0.005 | 0.005 | 0.022 | 0.006 |
+| layernorm, audio encoder | 0.096 | 0.059 | 0.042 | **0.040** | 0.048 | 0.076 | 0.040 | 0.040 |
+| softmax, 64 x 4096 | 0.047 | 0.025 | 0.014 | **0.009** | 0.006 | 0.006 | 0.009 | 0.009 |
+| softmax, vocabulary row (59264) | 0.886 | 0.440 | 0.223 | **0.118** | 0.063 | 0.041 | 0.118 | 0.150 |
+
+Default speed: layernorm encoder 383 GB/s (62% of peak), rmsnorm text decoder 166 GB/s (27%), softmax 64 x 4096 243 GB/s (39%), vocabulary row 4.0 GB/s (1%).
+
+**What it means.**
+- RoPE is memory-bound and already at 80% of peak on the large case, so block size hardly matters between 64 and 512. 32 threads per block is 23% slower, 1024 is 6% slower. The tiny cases take 3 microseconds in every variant, which is launch overhead, not work. `--use_fast_math` makes exactly one case fail, the audio encoder, which uses the largest angles: the fast sin/cos approximations lose accuracy as the angle grows.
+- The best reduction block size depends on the shape. The vocabulary row is one block on one of the GPU's 68 SMs (1% of peak bandwidth), so adding threads speeds it up almost linearly: 1024 threads are 2.9x faster than 256. A 1280-column layernorm row has too little work for 1024 threads and is 1.9x slower there, and its best size is 128 to 256. One constant cannot be best for all three kernels; per-kernel sizes, or splitting a long row over many blocks, would be the real fix for the vocabulary row.
+- Replacing the shuffle reduction in RMSNorm with `atomicAdd` on one shared float is 3.7x slower on the text-decoder case (0.022 vs 0.006 ms): all threads queue on one address. The layernorm columns are unchanged by this flag, as expected, since only RMSNorm uses it.
+- The textbook softmax (separate max and sum passes) is 27% slower than our one-read version only on the long vocabulary row (0.150 vs 0.118 ms). On shorter rows the two are equal at the 0.001 ms resolution, so we do not claim a difference there. The row (237 KB) probably sits in the GPU cache, so the extra reads are cheaper than DRAM reads would be.
+- Limits: differences below about 0.002 ms are noise at this resolution. Single GPU type (2080 Ti) and one node.
+
+## K03: Task 3 ablations (tiled GEMM) on the RTX 2080 Ti
+
+**Need.** The Task 3 "Try this" items: tile size, shared-memory padding, and the way the W tile is loaded. Same method as K02.
+
+```bash
+sbatch ablation/ablate.sbatch --stage sweep
+```
+
+| case (M x N x K) | tile 8 | **tile 16** | tile 32 | no pad | W strided | tile 32 + no pad |
+| --- | --- | --- | --- | --- | --- | --- |
+| decoder q_proj (64 x 2048 x 2048) | 0.470 | **0.315** | 0.267 | 0.704 | 0.444 | 1.217 |
+| decoder gate_proj (64 x 6144 x 2048) | 1.352 | **0.869** | 0.791 | 2.004 | 1.243 | 3.638 |
+| decoder down_proj (64 x 2048 x 6144) | 2.142 | **1.174** | 0.792 | 2.099 | 1.353 | 3.638 |
+| lm_head, last token (1 x 59264 x 2048) | 1.537 | **2.723** | 4.842 | 4.724 | 2.861 | 16.989 |
+| encoder q_proj (1500 x 1280 x 1280) | 4.166 | **2.595** | 2.300 | 6.015 | 3.716 | 10.608 |
+| encoder fc1 + GELU (1500 x 5120 x 1280) | 24.845 | **14.207** | 9.302 | 23.999 | 15.221 | 42.041 |
+| conv2 via im2col (1500 x 1280 x 3840) | 17.609 | **10.116** | 6.917 | 18.043 | 11.388 | 31.805 |
+
+Times in ms. Default (tile 16) throughput: 1.4 to 1.9 TFLOP/s on the large cases (for example encoder q_proj 1897, fc1 1384, conv2 1458 GFLOP/s) and 89 GFLOP/s on lm_head. lm_head reads the 485 MB weight matrix: 1.537 ms (tile 8) is 316 GB/s, the default 2.723 ms is 178 GB/s, tile 32 at 4.842 ms is 100 GB/s.
+
+**What it means.**
+- Bigger tiles reuse each loaded value more often, so tile 32 is fastest on every large case (fc1: 9.3 ms vs 14.2 ms at tile 16, 35% less; conv2 32% less) and tile 8 is slowest (fc1 +75%).
+- lm_head is the opposite: with M = 1 only one of a block's TILE rows of threads has a real output row, so only 1/8, 1/16 or 1/32 of the threads do useful work, and the smallest tile wins (tile 8 is 1.8x faster than 16, tile 32 is 1.8x slower). No single tile size is best for all shapes; a shape-dependent choice would beat every fixed one.
+- Removing the padding column of the W tile makes the large cases 1.7 to 2.3x slower (encoder q_proj 6.0 vs 2.6 ms): with a row length of 16 floats, the 16 threads that read `ws[tx][k]` fall on only two of the 32 shared-memory banks, so the reads queue up (bank conflicts). With tile 32 and no padding all 32 lanes hit the same bank, and the kernel is 4.5x slower than with padding (fc1 42.0 vs 9.3 ms). Padding matters more as the tile grows.
+- Loading the W tile with consecutive threads K floats apart (the lecture's way for B) is 5 to 43% slower: largest on decoder q_proj, decoder gate_proj and encoder q_proj (+41 to 43%), middling on decoder down_proj and conv2 (+13 to 15%), small on lm_head (+5%) and fc1 (+7%). The caches soften the penalty; we did not measure why lm_head is less affected than the guide suggests.
+- Limits: 2080 Ti only (the guide says the best tile differs per GPU). Not yet compared with cuBLAS in this log; the course test prints the cuBLAS and naive throughput per case, which is PENDING.
+
+## K04: Task 4 ablations (attention) on the RTX 2080 Ti
+
+**Need.** The Task 4 "Try this" items: queries per block (`ATTN_WARPS`) and the +1 padding of the key tile.
+
+```bash
+sbatch ablation/ablate.sbatch --stage sweep
+```
+
+| case | 1 warp | 2 | **4** | 8 | 16 | no pad (4 warps) |
+| --- | --- | --- | --- | --- | --- | --- |
+| audio encoder (20 heads, 1500) | 103.585 | 30.061 | **11.498** | 8.344 | 7.576 | 54.236 |
+| text decoder (GQA 16/4, causal) | 0.640 | 0.185 | **0.067** | 0.034 | 0.022 | 0.147 |
+| causal, seq_q = seq_k | 0.127 | 0.053 | **0.025** | 0.021 | 0.022 | 0.043 |
+
+Times in ms. Default throughput: audio encoder 1002 GFLOP/s, text decoder 252 GFLOP/s.
+
+**What it means.**
+- Each block loads the whole key/value sequence from global memory once, so the number of times a key is loaded is the number of blocks per head, seq_q / ATTN_WARPS. Going from 1 to 4 warps cuts those loads 4x and the encoder time 9x (103.6 to 11.5 ms), going to 16 cuts them 16x and the time 13.7x (7.6 ms). Gains shrink as the load traffic stops being the bottleneck (4 to 8 warps: 27%; 8 to 16: 9%).
+- The text decoder case benefits even more (0.067 to 0.022 ms at 16 warps), but at that size the kernel takes microseconds, so we expect launch and tail effects; the end-to-end effect is in K05.
+- Without the +1 padding of the key tile, the encoder case is 4.7x slower (54.2 vs 11.5 ms): the 32 lanes read `k_tile[lane * 64 + d]`, a stride of 64 floats, so all lanes hit the same shared-memory bank and the 32 reads are serialised. With the +1 the strides are 65 floats, so lanes spread over all banks.
+- Limits: ATTN_WARPS = 16 uses 512 threads per block and about 20 KB of shared memory; larger values were not tried. 2080 Ti only.
+
+## K05: End-to-end timing with the kernels switched on one task at a time
+
+**Need.** Micro-benchmarks do not say what matters for a whole transcription. Run the full model with PyTorch only, then add our kernels cumulatively, then three configuration variants. All rows come from one job (one allocation), so they are comparable with each other.
+
+```bash
+sbatch ablation/ablate.sbatch --stage e2e       # benchmark.py --cuda <groups> --runs 3
+```
+
+| run | kernels on CUDA | ms per transcription (+/- ) | ms per token | vs PyTorch only | accuracy |
+| --- | --- | --- | --- | --- | --- |
+| torch_only | none | 806.3 (2.4) | 62.0 | 1.00x | 100% |
+| task1 | RoPE | 727.1 (2.0) | 55.9 | 0.90x | 100% |
+| task1-2 | + reductions | 705.2 (0.7) | 54.2 | 0.87x | 100% |
+| task1-3 | + GEMM | 2998.2 (6.7) | 230.6 | 3.72x | 100% |
+| all_default | + attention | 3288.3 (7.8) | 252.9 | 4.08x | 100% |
+| all_tile8 | all, GEMM tile 8 | 4992.2 (9.0) | 384.0 | 6.19x | 100% |
+| all_tile32 | all, GEMM tile 32 | 2865.2 (6.6) | 220.4 | 3.55x | 100% |
+| all_attn_w8 | all, 8 attention warps | 3184.0 (7.0) | 244.9 | 3.95x | 100% |
+
+**What it means.**
+- Our RoPE and reduction kernels are faster than PyTorch's (0.87x together): they are memory-bound element-wise and row-wise operations, which a hand-written kernel handles as well as a library does, with fewer launches.
+- Our GEMM is the problem: swapping it in adds 2293 ms (3.72x total), an amount equal to 70% of the final all-kernels run time. (The share of run time spent inside the GEMM kernels is PENDING, from the profiles.) It reaches 1.4 to 1.9 TFLOP/s in K03; PyTorch uses cuBLAS (tuned library GEMM). Attention adds a further 290 ms over PyTorch's.
+- GEMM tile size is the best single change: tile 32 saves 423 ms (13%), tile 8 costs 1704 ms (+52%). 8 attention warps save 104 ms (3.2%). That matches the micro-benchmark (3.15 ms saved per call on the encoder case times 32 encoder layers = 101 ms). So attention is worth much less than the GEMM although its micro-benchmark gain looks bigger.
+- The all-default time here (3288.3 ms) matches the K01 run (3285.7 ms) within 0.1%, so our kernels' timing is reproducible across jobs. The PyTorch-only time is not: 806.3 ms here, 1215.4 ms in E03 on the same GPU type. We treat PyTorch's time as node-dependent (it includes host-side work) and quote only within-job ratios.
+- Accuracy is 100% for every configuration, so none of these variants changes the transcription on the test recording.
+- PENDING: the per-operation profiles (`--profile`) saved for torch_only, task1-3 and all_default, which show where the time goes by operation; the combined best configuration (tile 32 + 16 attention warps, not yet run); a repeat on a second allocation (two duplicate jobs were queued by mistake and can serve as this repeat).
