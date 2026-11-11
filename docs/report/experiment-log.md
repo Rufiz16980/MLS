@@ -681,14 +681,33 @@ Paired differences against k = 1: k = 5 +0.018 (7 queries worse), k = 20 +0.042;
 python rag/extensions/adaptive_k.py        # writes rag/results/adaptive_k.json
 ```
 
-**Result** (summary of the laptop run; exact table to be copied from `adaptive_k.json`):
-- Chosen policy: k = 1 if margin >= 0.0122, else k = 20. Margin beat s1 on AUC; AUC about 0.7, a weak signal.
-- The policy picks k = 1 for 26-30% of queries, and about a third of those picks are wrong (rank-1 record not relevant).
-- Mean k about 14-15 (about 2,650 context words). Recall: adaptive 0.481 (practice) and 0.503 (dev); a fixed k of the same mean depth gets 0.534-0.553. **At equal context, fixed depth beats adaptive on recall.**
-- Judged replay (n = 28): adaptive 0.277 vs fixed 0.250-0.292, all intervals about +/- 0.12, no difference. Even the oracle (k = 1 exactly when rank 1 is relevant) gains only about +0.05, not significant.
+**Result.** Chosen on practice: feature = margin (AUC 0.719 vs s1 0.707; on dev 0.691 vs 0.670), tau = 0.01224 (Youden J = TPR 0.535 - FPR 0.136). Policy: k = 1 if s1 - s2 >= 0.01224, else k = 20.
+
+| split | n | rank-1 relevant | policy | mean k | share at k = 1 | precision at k = 1 | Recall | hit | context words |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| practice | 350 | 0.411 | fixed k=1 | 1 | - | - | 0.229 | 0.411 | 175 |
+| practice | 350 | 0.411 | fixed k=5 | 5 | - | - | 0.421 | 0.591 | 897 |
+| practice | 350 | 0.411 | fixed k=20 | 20 | - | - | 0.579 | 0.737 | 3640 |
+| practice | 350 | 0.411 | adaptive | 14.3 | 0.300 | 0.733 | 0.481 | 0.680 | 2624 |
+| dev | 125 | 0.376 | fixed k=1 | 1 | - | - | 0.209 | 0.376 | 183 |
+| dev | 125 | 0.376 | fixed k=5 | 5 | - | - | 0.379 | 0.584 | 830 |
+| dev | 125 | 0.376 | fixed k=20 | 20 | - | - | 0.580 | 0.768 | 3598 |
+| dev | 125 | 0.376 | adaptive | 15.1 | 0.256 | 0.656 | 0.503 | 0.712 | 2679 |
+
+Fixed k with the same mean depth (k = 14-15; computed on the laptop, now also printed by the script): Recall about 0.534 (practice) and 0.553 (dev), above adaptive's 0.481 and 0.503. Rerun `adaptive_k.py` to print it in the table.
+
+Replay on the 28 judged practice queries (no new ELM calls), paired against fixed k = 5:
+
+| policy | judge score (95% CI) | diff vs k=5 (95% CI) | better / worse / tied | mean k | prompt tokens |
+| --- | --- | --- | --- | --- | --- |
+| fixed k=1 | 0.250 (0.134-0.381) | -0.018 (-0.164 to +0.119) | 7 / 8 / 13 | 1.0 | 305 |
+| fixed k=5 | 0.268 (0.164-0.387) | 0 | - | 5.0 | 1249 |
+| fixed k=20 | 0.292 (0.179-0.426) | +0.024 (-0.089 to +0.134) | 8 / 9 / 11 | 20.0 | 4730 |
+| adaptive | 0.277 (0.164-0.411) | +0.009 (-0.122 to +0.122) | 9 / 7 / 12 | 13.9 | 3198 |
+| oracle (k = 1 iff rank 1 relevant) | 0.315 (0.187-0.455) | +0.048 (-0.107 to +0.179) | 9 / 8 / 11 | 12.5 | 2932 |
 
 **What it means.**
-- A negative result with a mechanism: the confidence signal mis-routes a third of its k = 1 picks, and each mis-route loses the relevant record entirely, which costs more than the dilution it avoids. The oracle bound shows that even a perfect gate gains little here, because the judge's zero-score floor (no relevant record in the top 20, E13/E14) dominates the average and no depth policy can fix retrieval misses.
+- A negative result with a mechanism: the confidence signal mis-routes 27% (practice) to 34% (dev) of its k = 1 picks, and each mis-route loses the relevant record entirely, which costs more than the dilution it avoids. The oracle bound shows that even a perfect gate gains little here, because the judge's zero-score floor (no relevant record in the top 20, E13/E14) dominates the average and no depth policy can fix retrieval misses.
 - Caveat: the 28 replay queries are part of the practice tuning split. That would favour the policy, and it still shows no gain, so the conclusion holds. The threshold was tuned on labels, not on judge scores.
 - Not run, deliberately: a dev confirmation with new ELM calls. The oracle ceiling is too low for it to change the conclusion.
 
