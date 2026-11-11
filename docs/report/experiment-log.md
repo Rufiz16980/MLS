@@ -497,6 +497,8 @@ sbatch ablation/ablate.sbatch --stage best
 
 ## E12: Answer quality versus retrieval depth (practice, first 15 queries, k = 1, 5, 20)
 
+> SUPERSEDED by E15 (30 queries): the upward trend seen here does not hold on the next 15 queries. Kept for the record.
+
 **Need.** The core of Plan A: does giving the answer model more retrieved evidence improve answer quality, and what does it cost? Same cached transcripts and the supplied prompt, generator settings and judge rubric for every k, so only k changes. 90 ELM calls (15 queries x 3 depths x one generate + one judge).
 
 ```bash
@@ -559,3 +561,28 @@ Paired difference in judge score against k = 1 (same 15 queries):
 - About 12% of queries have no relevant record in the top 100 on both splits: no choice of k can help them. This ceiling comes from the encoder and the (ASR) query text, and is what Plans B (better query representation) and C (ASR errors) would act on.
 - Reported median rank of the first relevant record: 2, the same on both splits.
 - Together with E13: some of the zero answer scores are retrieval misses (this 12%), the rest come from the generation or judge side.
+
+## E15: Answer quality versus retrieval depth, extended to 30 practice queries (n = 28 judged)
+
+**Need.** E12 (n = 15) had intervals too wide to separate the depths. Add queries 16-30 at the same three depths with identical settings (same transcripts, prompt, models, temperature, judge rubric, query order); the first 15 answers and judge scores are reused, so the comparison stays paired. Run on the laptop and reported to us.
+
+```bash
+bash rag/extensions/run_answer_quality.sh 30     # skips the 15 queries already done; about 90 more ELM calls
+```
+
+Exclusions: the course judge returned unparseable output for 2 of the 30 queries (`q_d442a6395dbca951`, `q_4e29b0ce6fa96d1a`); at temperature 0 retries fail the same way, and the judge is a supplied (frozen) file. Both queries are excluded at every depth, so n = 28, still paired.
+
+| k | judge score (95% CI) | Recall@k | prompt tokens | generation ms (median) |
+| --- | --- | --- | --- | --- |
+| 1 | 0.250 (0.131-0.381) | 0.232 | 305 | 1803 |
+| 5 | 0.268 (0.155-0.387) | 0.472 | 1249 | 3782 |
+| 20 | 0.292 (0.173-0.411) | 0.639 | 4730 | 4303 |
+
+Paired differences against k = 1: k = 5 +0.018 (7 queries worse), k = 20 +0.042; neither interval excludes zero. Batch check: the new 13 judged queries go the other way from the first 15 (0.333 at k = 1, 0.212 at k = 5 and 20), so the E12 trend came from the first batch.
+
+**What it means.**
+- Under this judge, judged answer quality is flat in k: k = 1 or 5 gives about the same score as k = 20, while the prompt grows 15x from k = 1 to 20 and median generation time 2.4x. Retrieval coverage (Recall@k, hit@k in E14) rises strongly with k, but the judged quality does not follow.
+- This is a valid negative result for Plan A, with limits: with intervals of about +-0.12 we cannot detect differences below roughly 0.1, so it is not proof that depth never helps.
+- Candidate reasons, not yet tested: many answers are scored 0 (reported 14 to 16 of 28 per depth; the judge credits only the gold evidence, E13), about 12% of queries are retrieval misses at any k (E14), and the generator may not use extra context.
+- Cost of the whole answer-quality study: about 190 ELM calls including the smoke test (E10) and a few failed judge retries, slightly above the planned 180 + 10.
+- PENDING: an ELM-free check of whether answers use the relevant record when it is in the context; verify the per-batch numbers from the saved summary files (`aq_practice_summary*.json`) on our side.
