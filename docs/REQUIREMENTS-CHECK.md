@@ -6,11 +6,11 @@ Sources re-read: `01_submission_requirements.pdf`, `02_group_report_rubric.pdf`,
 | Requirement (source) | State | Evidence / gap |
 | --- | --- | --- |
 | Four kernels implemented, tests pass, transcription passes (hw1 README) | done | K01 |
-| Hand in the five task files (hw1 README, slides p.13) | ready; decide whether defaults stay at the handout values or become tile 32 + 16 warps | overlay/hw1-asr/csrc |
-| `make test` AND `./run.sh --profile` from the SAME GPU node, plus `nvidia-smi -L` (hw1 README, slides p.13) | GAP | our test output is from opencast (K01), the profile from damnii08 (K06). One `sbatch run_asr.sbatch` job on the final configuration fixes it |
+| Hand in the five task files (hw1 README, slides p.13) | ready; defaults are now tile 32 + 16 warps (K07), verified in K08 | overlay/hw1-asr/csrc |
+| `make test` AND `./run.sh --profile` from the SAME GPU node, plus `nvidia-smi -L` (hw1 README, slides p.13) | done | K08 (one job, damnii07, submitted config) |
 | At least one "Try this" per task: change, numbers, explanation (slides p.13) | done, several per task | K02-K04 |
 | Answer at least one question from each of the four guides, in the main body (hw1 README) | GAP: not drafted | data exists for e.g. T1 Q1 (bytes, % of peak), T2 Q3 (reads of x), T3 Q1/Q3 (load counts, GELU fusion bytes), T4 Q1/Q4 (score-matrix memory, key loads) |
-| Task 3: compare tiled vs naive vs cuBLAS (test prints all three) | GAP: only our numbers logged | fetch the 'for comparison' lines from the sweep's default.log |
+| Task 3: compare tiled vs naive vs cuBLAS (test prints all three) | done | K08 table: ours about 9x naive, 16-31% of cuBLAS; lm_head slower than naive at tile 32 |
 | Same GPU type for compared numbers, report it (slides p.12) | done | 2080 Ti pinned; node named per run |
 
 ## RAG systems investigation

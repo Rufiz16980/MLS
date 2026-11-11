@@ -495,6 +495,53 @@ sbatch ablation/ablate.sbatch --stage best
 - Against PyTorch, the best configuration is 2.24x slower than the 1215.4 ms `opencast` baseline of E03 (3.38x against the 806.3 ms `damnii08` baseline), so cuBLAS-class GEMM performance is far from reached; the gap is the GEMM (K06).
 - Limits: 2080 Ti only; the guide says the best tile differs per GPU; tile and warp counts were not searched jointly beyond these two values.
 
+## K08: Hand-in run on the submitted configuration (tile 32 + 16 warps; `make test` and profile from one job, node damnii07)
+
+**Need.** The hw1 README asks for `make test` and `./run.sh --profile` from the same GPU node, plus `nvidia-smi -L`, on the configuration we hand in. Since K07 the submitted defaults are `ASR_TILE 32` and `ASR_ATTN_WARPS 16` (handout values 16 and 4); RoPE and reduction block sizes stay 256. One job, node `damnii07`, `GPU 0: NVIDIA GeForce RTX 2080 Ti`.
+
+```bash
+cd hw1-asr && sbatch ablation/handin.sbatch      # job output: handin-JOB_ID.out
+```
+
+**Tests.** Tasks 1-4: ALL PASS (same max errors as K01). Selected throughput: RoPE audio encoder 491.8 GB/s (80% of the 616 GB/s peak); layernorm audio encoder 381.0 GB/s (62%); attention audio encoder (20 heads, 1500) 7.526 ms, 1531 GFLOP/s.
+
+**Task 3 comparison (printed by the test; GFLOP/s).**
+
+| case | naive | ours (tile 32) | cuBLAS | ours / naive | ours / cuBLAS |
+| --- | --- | --- | --- | --- | --- |
+| decoder q_proj (64x2048x2048) | 153 | 1462 | 4647 | 9.6x | 31% |
+| decoder gate_proj (64x6144x2048) | 162 | 1497 | 6825 | 9.2x | 22% |
+| decoder down_proj (64x2048x6144) | 193 | 1825 | 8143 | 9.5x | 22% |
+| lm_head, last token (1x59264x2048) | 111 | 63 | 291 | 0.57x | 22% |
+| encoder q_proj (1500x1280x1280) | 231 | 2160 | 13201 | 9.4x | 16% |
+| encoder fc1 + GELU (1500x5120x1280) | 233 | 2107 | 13363 | 9.0x | 16% |
+| conv2 via im2col (1500x1280x3840) | 232 | 2130 | 13340 | 9.2x | 16% |
+
+(The three tiny/odd cases use a CPU reference and run in microseconds, so their GFLOP/s are not meaningful.)
+
+**Profile and end to end.** Model load 179.9 s (first use on this node). Three runs 2697.3 / 2708.7 / 2728.0 ms; **2711.3 ms per transcription (+/- 12.7), 208.6 ms per token**, 13 tokens, peak GPU memory 8.56 GiB, transcription "Concord returned to its place amidst the tents." Accuracy 100%, Status PASS.
+
+| operation | calls | total ms | share |
+| --- | --- | --- | --- |
+| linear | 2757 | 2449.5 | 86.1% |
+| attention | 396 | 378.3 | 13.3% |
+| rmsnorm | 741 | 6.7 | 0.2% |
+| silu_mul | 364 | 3.5 | 0.1% |
+| rope | 396 | 3.0 | 0.1% |
+| layernorm | 65 | 2.4 | 0.1% |
+| softmax | 13 | 1.5 | 0.1% |
+| embedding | 13 | 1.3 | 0.0% |
+| im2col | 2 | 0.2 | 0.0% |
+
+(2846.5 ms in kernels for the profiled transcription.)
+
+**What it means.**
+- The hand-in requirement is met by this one job: tests, profile and `nvidia-smi -L` from the same node, on the submitted configuration.
+- End to end agrees with K07's best configuration (2728.1 ms on `opencast`) within 0.6%, on a third node, consistent with our kernel time not depending on the node (K07).
+- Tiling is about 9-10x faster than the naive kernel on every multi-row GEMM: each value loaded into shared memory is reused by 32 threads instead of being read from global memory per output. cuBLAS is still 3-6x faster (we reach 16-31% of it). Likely reasons, not measured by us: cuBLAS computes several outputs per thread from registers (register tiling), uses wider vector loads and double buffering, and picks a kernel per shape.
+- `lm_head` is the exception: with one row (one token), a 32x32 tile keeps only 1 of 32 rows busy, so tile 32 is slower than naive (63 vs 111 GFLOP/s). K03 found tile 8 best for this case. A shape-dependent tile (small tile when M is small) is the obvious fix; not implemented.
+- With 16 warps, attention's share fell from 15.9% (K06, handout defaults) to 13.3%; linear is now 86.1%. The remaining gap to PyTorch (E03) is almost all GEMM.
+
 ## E12: Answer quality versus retrieval depth (practice, first 15 queries, k = 1, 5, 20)
 
 > SUPERSEDED by E15 (30 queries): the upward trend seen here does not hold on the next 15 queries. Kept for the record.
