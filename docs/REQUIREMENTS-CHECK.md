@@ -22,7 +22,7 @@ Sources re-read: `01_submission_requirements.pdf`, `02_group_report_rubric.pdf`,
 | Timing boundaries, caching, repeats, variability stated (submission req.) | mostly | transcripts cached (asr_ms not real), bootstrap CIs; ELM calls single run |
 | Judge settings reported, limits of automated scores (submission req.) | done | E12, E13, E15 |
 | Explain why (mechanisms), limitations, alternatives (rubric) | partly | E16 coverage vs dilution (post hoc, small groups) |
-| Technical substance of the RAG change (rubric: technical work 30) | GAP: depth sweep is a parameter change | implement one change of our own, e.g. adaptive k / evidence budget (follows from E16) |
+| Technical substance of the RAG change (rubric: technical work 30) | done | E17 adaptive k: implemented, protocol fixed in advance, tuned on practice labels, held-out dev check, replay on judged answers, oracle bound; negative result with mechanism |
 | Trustworthy evidence, robustness tests (rubric "Excellent") | GAP | answer quality only on 28 practice queries; no dev-split confirmation; k = 2 and 10 not run; no judge-repeat reliability check |
 
 ## Real ASR data question
@@ -31,3 +31,7 @@ There is no reference (true) text for the 475 audio queries: the slides list the
 ## Other
 - Anonymity: no names/UUN/repo link in report, video or code zip; the GitHub repo is public and its history contains the UUN, so do not reference it in the report.
 - Individual review (30%): happens after submission, on an assigned report.
+
+
+## Added 2026-11-11
+- End-to-end cost breakdown joining ASR, retrieval and generation: E18 (derived from logged numbers).
