@@ -711,3 +711,29 @@ Replay on the 28 judged practice queries (no new ELM calls), paired against fixe
 - Caveat: the 28 replay queries are part of the practice tuning split. That would favour the policy, and it still shows no gain, so the conclusion holds. The threshold was tuned on labels, not on judge scores.
 - Not run, deliberately: a dev confirmation with new ELM calls. The oracle ceiling is too low for it to change the conclusion.
 
+
+## E18: End-to-end cost per spoken query (derived from E04, E09, E10, E15, K09; no new runs)
+
+**Need.** Tie the two halves together: where does the time for one spoken question go, and how do our two changes (CUDA kernels, retrieval depth) compare in effect? Built only from logged numbers; the stages ran on different machines (ASR on the RTX 2080 Ti, embedding and retrieval on the laptop CPU, generation on the remote ELM service), so the sum is an estimate, not a measured pipeline time.
+
+| stage | source | time per query |
+| --- | --- | --- |
+| ASR, PyTorch kernels | E04: 350 practice queries, `opencast` | mean 1555 ms (median 1467) |
+| ASR, our kernels | K09 ratio 2.45x on one node, applied to E04 | about 3810 ms (estimate) |
+| query embedding (enc_a, CPU) | E10 | 21-54 ms |
+| retrieval (exact dense, 24,000 records) | E09 matrix only / E10 in the pipeline | 0.45 ms / 4-10 ms |
+| generation, k = 1 / 5 / 20 | E15 medians, n = 28 | 1803 / 3782 / 4303 ms |
+| generation, adaptive k | E17 | not timed; prompt 3198 tokens, between k = 5 and k = 20 |
+
+Estimated totals at the course baseline k = 5 (ASR + about 40 ms embedding + retrieval + generation):
+
+| ASR kernels | total | ASR share | generation share | embed + retrieve |
+| --- | --- | --- | --- | --- |
+| PyTorch | about 5.4 s | 29% | 70% | under 1% |
+| ours | about 7.6 s | 50% | 50% | under 1% |
+
+**What it means.**
+- Generation is the largest single cost with PyTorch ASR; with our kernels ASR and generation are about equal. Embedding and exact retrieval over 24,000 records are negligible, so an approximate index would not help this pipeline.
+- The two "knobs" are of similar size: our kernels add about 2.3 s to ASR versus PyTorch; moving from k = 1 to k = 20 adds about 2.5 s of generation (and 15x the prompt tokens) for no measurable quality gain (E15). Retrieval depth is a cost decision, not a quality one, in this system.
+- Limits: different machines per stage; generation latency depends on the shared ELM service load; ASR for our kernels is extrapolated from the test clip ratio (the per-token cost ratio is the same, 207.6 vs 84.3 ms per token, K09, so the extrapolation assumes similar transcript lengths, about 13-20 tokens).
+
