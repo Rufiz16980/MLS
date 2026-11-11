@@ -33,7 +33,7 @@ Rubric weights: technical work 30, experimental evidence 30, analysis 30, commun
 PENDING. Known already: single baseline node so far (E03); judge is an automated LLM score; the public judge scores the ASR transcript, which cannot detect ASR errors.
 
 ## Evidence index
-E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev), E09 retrieval-depth sweep (practice), E10 five-query smoke test, E11 retrieval-depth sweep (dev), K01 kernel correctness, K02-K04 kernel ablations (Tasks 1-4), K05 end-to-end timing, K06 per-operation profile, K07 combined best configuration, E12 answer quality vs depth, E13 zero-score queries, E14 hit@k, E15 answer quality at n = 28 (see experiment-log.md).
+E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verification), E05 RAG setup, E06 transcripts copied, E07 baseline retrieval (practice), E08 baseline retrieval (dev), E09 retrieval-depth sweep (practice), E10 five-query smoke test, E11 retrieval-depth sweep (dev), K01 kernel correctness, K02-K04 kernel ablations (Tasks 1-4), K05 end-to-end timing, K06 per-operation profile, K07 combined best configuration, E12 answer quality vs depth, E13 zero-score queries, E14 hit@k, E15 answer quality at n = 28, E16 coverage vs dilution (see experiment-log.md).
 
 ## Kernel results so far (ASR part; RTX 2080 Ti; all numbers within one job, see K01-K05)
 
@@ -49,3 +49,4 @@ E01 pinned code/data, E02 guard, E03 ASR baseline, E04 transcripts (+verificatio
 - Answer quality vs depth (E12, 15 practice queries, 90 ELM calls): judge score 0.178 / 0.317 / 0.361 at k = 1 / 5 / 20; the step 1 to 5 is +0.139 (95% CI -0.006 to +0.311), 5 to 20 only +0.044, while context grows 4.1x and generation time 1.5x. Tentative (n = 15), to be extended to 30 queries.
 - Coverage (E14, reported, re-run pending): hit@k = 0.41 / 0.59 / 0.74 / 0.88 at k = 1 / 5 / 20 / 100 on practice (dev 0.38 / 0.58 / 0.77 / 0.88); about 12% of queries have no relevant record in the top 100, a ceiling for any choice of k. Two of three zero-score queries inspected (E13) were retrieval misses.
 - Answer quality vs depth, final (E15, n = 28 paired): judge score 0.250 / 0.268 / 0.292 at k = 1 / 5 / 20, differences not significant, while prompt tokens grow 305 -> 4730 and generation time 1.8 -> 4.3 s. The E12 trend did not replicate. Plan A result: under this judge, small k matches large k at a fraction of the cost.
+- Mechanism (E16, small groups): rank-1 queries lose a little with more records (dilution, 0.447 -> 0.386), lower-ranked ones gain (coverage); misses stay at 0. Follow-up: reranking or adaptive k.

@@ -586,3 +586,20 @@ Paired differences against k = 1: k = 5 +0.018 (7 queries worse), k = 20 +0.042;
 - Candidate reasons, not yet tested: many answers are scored 0 (reported 14 to 16 of 28 per depth; the judge credits only the gold evidence, E13), about 12% of queries are retrieval misses at any k (E14), and the generator may not use extra context.
 - Cost of the whole answer-quality study: about 190 ELM calls including the smoke test (E10) and a few failed judge retries, slightly above the planned 180 + 10.
 - PENDING: an ELM-free check of whether answers use the relevant record when it is in the context; verify the per-batch numbers from the saved summary files (`aq_practice_summary*.json`) on our side.
+
+## E16: Why E15 is flat, judge score by rank of the first relevant record (no ELM calls)
+
+**Need.** E15 shows flat judged quality across k although coverage rises. Split the 28 judged queries by where retrieval first finds a relevant record, and follow each group across depths. Computed on the laptop from the saved E15 results and reported to us. Our check: the group means, weighted by group size, reproduce the E15 means exactly (0.250, 0.268, 0.292).
+
+| first relevant record at | n | judge score at k = 1 / 5 / 20 |
+| --- | --- | --- |
+| rank 1 | 11 | 0.447 / 0.394 / 0.386 |
+| ranks 2 to 5 | 8 | 0.208 / 0.250 / 0.344 |
+| ranks 6 to 20 | 4 | 0.104 / 0.292 / 0.292 |
+| not in top 20 | 5 | 0 / 0 / 0 |
+
+**What it means.**
+- Two effects cancel in the average. Queries whose evidence ranks lower gain when depth brings it into the context (coverage), while queries whose evidence is already at rank 1 lose a little as more records are added (0.447 to 0.386), consistent with extra records acting as distractors (dilution). The net is nearly flat.
+- Queries with no relevant record in the top 20 score 0 at every depth: no k helps them (Plans B and C).
+- Suggests a testable follow-up: a reranker or an adaptive k (small k when the top record is a confident match) could keep the coverage gain without the dilution loss.
+- Limits: groups are small (11, 8, 4, 5) and were defined after seeing the data; this is an explanation to test, not a measured effect.

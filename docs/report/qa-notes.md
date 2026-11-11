@@ -29,3 +29,4 @@ Purpose: after the results are in, this is the study sheet for answering questio
 - PyTorch's own time depends on the node's CPU; our kernel time does not. Quote ratios with the node (K05, K07).
 - Answer quality vs retrieval depth (E12, n = 15): most of the gain is from k = 1 to 5; k = 5 to 20 adds little for 4x the context. Generation time grows more slowly than prompt size, so writing the answer dominates the delay. Tentative until extended to 30 queries.
 - UPDATE (E15, n = 28): the E12 trend did not replicate. Judged quality is flat across k = 1, 5, 20 while cost grows strongly: a negative result. Be ready to explain why (judge credits only gold evidence, 12% retrieval misses, generator use of context) and that we cannot detect differences below about 0.1.
+- Why flat (E16): coverage gain for queries whose evidence ranks lower, dilution loss for queries already answered at rank 1; they cancel. Small groups, post hoc.
