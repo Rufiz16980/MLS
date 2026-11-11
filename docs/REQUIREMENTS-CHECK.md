@@ -10,6 +10,7 @@ Sources re-read: `01_submission_requirements.pdf`, `02_group_report_rubric.pdf`,
 | `make test` AND `./run.sh --profile` from the SAME GPU node, plus `nvidia-smi -L` (hw1 README, slides p.13) | GAP | our test output is from opencast (K01), the profile from damnii08 (K06). One `sbatch run_asr.sbatch` job on the final configuration fixes it |
 | At least one "Try this" per task: change, numbers, explanation (slides p.13) | done, several per task | K02-K04 |
 | Answer at least one question from each of the four guides, in the main body (hw1 README) | GAP: not drafted | data exists for e.g. T1 Q1 (bytes, % of peak), T2 Q3 (reads of x), T3 Q1/Q3 (load counts, GELU fusion bytes), T4 Q1/Q4 (score-matrix memory, key loads) |
+| Task 3: compare tiled vs naive vs cuBLAS (test prints all three) | GAP: only our numbers logged | fetch the 'for comparison' lines from the sweep's default.log |
 | Same GPU type for compared numbers, report it (slides p.12) | done | 2080 Ti pinned; node named per run |
 
 ## RAG systems investigation
@@ -21,6 +22,7 @@ Sources re-read: `01_submission_requirements.pdf`, `02_group_report_rubric.pdf`,
 | Timing boundaries, caching, repeats, variability stated (submission req.) | mostly | transcripts cached (asr_ms not real), bootstrap CIs; ELM calls single run |
 | Judge settings reported, limits of automated scores (submission req.) | done | E12, E13, E15 |
 | Explain why (mechanisms), limitations, alternatives (rubric) | partly | E16 coverage vs dilution (post hoc, small groups) |
+| Technical substance of the RAG change (rubric: technical work 30) | GAP: depth sweep is a parameter change | implement one change of our own, e.g. adaptive k / evidence budget (follows from E16) |
 | Trustworthy evidence, robustness tests (rubric "Excellent") | GAP | answer quality only on 28 practice queries; no dev-split confirmation; k = 2 and 10 not run; no judge-repeat reliability check |
 
 ## Real ASR data question
