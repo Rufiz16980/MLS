@@ -29,7 +29,7 @@
 
 // Tuning constants. Override at build time for ablations: -DASR_ATTN_WARPS=8, -DASR_K_PAD=0
 #ifndef ASR_ATTN_WARPS
-#define ASR_ATTN_WARPS 4
+#define ASR_ATTN_WARPS 16  // handout value 4; 16 cuts key reloads, fastest on the 2080 Ti (K04, K07)
 #endif
 #ifndef ASR_K_PAD
 #define ASR_K_PAD 1

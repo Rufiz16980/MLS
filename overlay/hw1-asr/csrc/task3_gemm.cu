@@ -18,7 +18,7 @@
 
 // Tuning constants. Override at build time for ablations: -DASR_TILE=32, -DASR_WS_PAD=0
 #ifndef ASR_TILE
-#define ASR_TILE 16
+#define ASR_TILE 32  // handout value 16; 32 is fastest on the 2080 Ti for the large layers (K03, K07)
 #endif
 #ifndef ASR_WS_PAD
 #define ASR_WS_PAD 1
