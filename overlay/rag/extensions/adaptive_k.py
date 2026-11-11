@@ -144,13 +144,18 @@ def main():
     for split, rows in splits.items():
         base = sum(r["top1_rel"] for r in rows) / len(rows)
         st = policy_stats(rows, feat, tau, args.k_lo, args.k_hi, data)
-        fx = {k: fixed_stats(rows, k, data) for k in all_k}
-        out["splits"][split] = {"n": len(rows), "top1_rel_rate": base, "adaptive": st, "fixed": fx,
+        # fixed depth with the same mean k as the policy: separates "adaptive" from "just more context"
+        mk = int(round(st["mean_k"]))
+        for r in rows:
+            r["recall_at"].setdefault(mk, recall_at_k(r["ids"], data.load_qrels(split)[r["query_id"]], mk))
+        fx = {k: fixed_stats(rows, k, data) for k in sorted(set(all_k) | {mk})}
+        out["splits"][split] = {"n": len(rows), "top1_rel_rate": base, "adaptive": st, "fixed": fx, "matched_k": mk,
                                 "per_query": [{k: r[k] for k in ("query_id", "s1", "margin", "first_rel_rank")} |
                                               {"k": args.k_lo if r[feat] >= tau else args.k_hi} for r in rows]}
-        for k in args.fixed:
+        for k in sorted(set(args.fixed) | {mk}):
             f = fx[k]
-            print(f"| {split} | {len(rows)} | {base:.3f} | fixed k={k} | {k} | - | - | {f['recall_mean']:.3f} | "
+            tag = " (same mean k)" if k == mk and k not in args.fixed else ""
+            print(f"| {split} | {len(rows)} | {base:.3f} | fixed k={k}{tag} | {k} | - | - | {f['recall_mean']:.3f} | "
                   f"{f['hit_mean']:.3f} | {f['context_words_mean']:.0f} |")
         print(f"| {split} | {len(rows)} | {base:.3f} | **adaptive** | {st['mean_k']:.1f} | {st['share_k_lo']:.3f} | "
               f"{st['precision_k_lo']:.3f} | {st['recall_mean']:.3f} | {st['hit_mean']:.3f} | {st['context_words_mean']:.0f} |")

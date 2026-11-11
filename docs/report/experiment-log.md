@@ -670,3 +670,25 @@ Paired differences against k = 1: k = 5 +0.018 (7 queries worse), k = 20 +0.042;
 - Queries with no relevant record in the top 20 score 0 at every depth: no k helps them (Plans B and C).
 - Suggests a testable follow-up: a reranker or an adaptive k (small k when the top record is a confident match) could keep the coverage gain without the dilution loss.
 - Limits: groups are small (11, 8, 4, 5) and were defined after seeing the data; this is an explanation to test, not a measured effect.
+
+## E17: Adaptive retrieval depth (our RAG change; no ELM calls)
+
+**Need.** E16 showed that extra records hurt when the rank-1 record is already relevant and help when it is not. So: choose k per query from the retriever's own confidence, k = 1 when confident, else k = 20. Script `rag/extensions/adaptive_k.py`.
+
+**Protocol (fixed before looking at answer quality).** (1) On practice (n = 350, relevance labels only) pick the feature, top-1 score s1 or margin s1 - s2, by AUC for "rank-1 record is relevant", and the threshold by Youden's J. (2) Freeze both and evaluate on dev (n = 125, held out). (3) Replay on the 28 practice queries already judged at k = 1, 5 and 20 (E15): the adaptive answer is the existing answer at the chosen k, so the judge score costs no new call. Compare with a fixed k that has the same mean k as the policy, so that the comparison is not just "more context".
+
+```bash
+python rag/extensions/adaptive_k.py        # writes rag/results/adaptive_k.json
+```
+
+**Result** (summary of the laptop run; exact table to be copied from `adaptive_k.json`):
+- Chosen policy: k = 1 if margin >= 0.0122, else k = 20. Margin beat s1 on AUC; AUC about 0.7, a weak signal.
+- The policy picks k = 1 for 26-30% of queries, and about a third of those picks are wrong (rank-1 record not relevant).
+- Mean k about 14-15 (about 2,650 context words). Recall: adaptive 0.481 (practice) and 0.503 (dev); a fixed k of the same mean depth gets 0.534-0.553. **At equal context, fixed depth beats adaptive on recall.**
+- Judged replay (n = 28): adaptive 0.277 vs fixed 0.250-0.292, all intervals about +/- 0.12, no difference. Even the oracle (k = 1 exactly when rank 1 is relevant) gains only about +0.05, not significant.
+
+**What it means.**
+- A negative result with a mechanism: the confidence signal mis-routes a third of its k = 1 picks, and each mis-route loses the relevant record entirely, which costs more than the dilution it avoids. The oracle bound shows that even a perfect gate gains little here, because the judge's zero-score floor (no relevant record in the top 20, E13/E14) dominates the average and no depth policy can fix retrieval misses.
+- Caveat: the 28 replay queries are part of the practice tuning split. That would favour the policy, and it still shows no gain, so the conclusion holds. The threshold was tuned on labels, not on judge scores.
+- Not run, deliberately: a dev confirmation with new ELM calls. The oracle ceiling is too low for it to change the conclusion.
+
