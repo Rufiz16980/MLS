@@ -542,6 +542,26 @@ cd hw1-asr && sbatch ablation/handin.sbatch      # job output: handin-JOB_ID.out
 - `lm_head` is the exception: with one row (one token), a 32x32 tile keeps only 1 of 32 rows busy, so tile 32 is slower than naive (63 vs 111 GFLOP/s). K03 found tile 8 best for this case. A shape-dependent tile (small tile when M is small) is the obvious fix; not implemented.
 - With 16 warps, attention's share fell from 15.9% (K06, handout defaults) to 13.3%; linear is now 86.1%. The remaining gap to PyTorch (E03) is almost all GEMM.
 
+## K09: Same-job comparison with PyTorch (submitted config, node damnii07)
+
+**Need.** PyTorch's own time depends on the node's host CPU (806.3 ms on `damnii08`, 1215.4 ms on `opencast`; K05, E03), so the speed ratio is only fair when both run in one job on one node. Order PyTorch, ours, PyTorch, to check that the node stays stable during the job. Node `damnii07`, `GPU 0: NVIDIA GeForce RTX 2080 Ti`, one job.
+
+```bash
+sbatch ... --wrap='... ./run.sh --cuda none --profile; ./run.sh --profile; ./run.sh --cuda none --profile'
+```
+
+| run | ms per transcription (+/-) | ms per token | peak GPU memory | status |
+| --- | --- | --- | --- | --- |
+| PyTorch only (`--cuda none`) | 1096.2 (1.8) | 84.3 | 8.88 GiB | PASS |
+| ours (tile 32 + 16 warps) | 2698.8 (7.9) | 207.6 | 8.56 GiB | PASS |
+| PyTorch only, again | 1103.8 (4.9) | 84.9 | 8.88 GiB | PASS |
+
+**What it means.**
+- The node was stable: the two PyTorch runs differ by 0.7%. Our time matches K08 on the same node within 0.5%.
+- **Our kernels are 2.45x slower than PyTorch** (2698.8 / 1100.0 ms mean) on the same node and job: the headline ratio for the report. The gap is the GEMM (86% of our kernel time, K08), where cuBLAS is 3-6x faster than our tiled kernel.
+- Our kernels use 0.32 GiB less peak GPU memory than PyTorch.
+- Accuracy is 100% in all three runs.
+
 ## E12: Answer quality versus retrieval depth (practice, first 15 queries, k = 1, 5, 20)
 
 > SUPERSEDED by E15 (30 queries): the upward trend seen here does not hold on the next 15 queries. Kept for the record.
