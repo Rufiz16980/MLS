@@ -19,3 +19,7 @@ for k in $KS; do
       --allow-subset --out-dir "rag/results/aq_${SPLIT}_k${k}_judge"
 done
 python rag/extensions/answer_quality_summary.py --split "$SPLIT" --ks $KS
+if [ "$N" -gt 15 ]; then   # batch check: the first 15 (earlier run) and the new queries, same settings
+  echo; echo "== batch check: queries 1-15 =="; python rag/extensions/answer_quality_summary.py --split "$SPLIT" --ks $KS --range 1 15
+  echo; echo "== batch check: queries 16-$N =="; python rag/extensions/answer_quality_summary.py --split "$SPLIT" --ks $KS --range 16 "$N"
+fi

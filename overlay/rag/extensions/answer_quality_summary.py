@@ -37,6 +37,8 @@ def main():
     ap.add_argument("--ks", type=int, nargs="+", default=[1, 5, 20])
     ap.add_argument("--bootstrap", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--range", type=int, nargs=2, metavar=("FIRST", "LAST"), default=None,
+                    help="only queries FIRST..LAST (1-based, manifest order), e.g. 16 30 for the second batch")
     args = ap.parse_args()
     from src.data import CourseData
     from src.metrics import recall_at_k
@@ -48,7 +50,11 @@ def main():
         ans = {r["query_id"]: r for r in jsonl(res / f"aq_{args.split}_k{k}.jsonl")}
         jud = {r["query_id"]: r for r in jsonl(res / f"aq_{args.split}_k{k}_judge" / "answer_judge_per_query.jsonl")}
         per_k[k] = (ans, jud)
-    common = sorted(set.intersection(*[set(a) & set(j) for a, j in per_k.values()]))
+    both = set.intersection(*[set(a) & set(j) for a, j in per_k.values()])
+    order = [it["query_id"] for it in data.audio_items(args.split)]  # manifest order = the order queries were run
+    if args.range:
+        order = order[args.range[0] - 1:args.range[1]]
+    common = [q for q in order if q in both]
     if not common:
         sys.exit("no query has both an answer and a judge score at every k")
     rows, scores = [], {}
@@ -74,9 +80,10 @@ def main():
         lo, hi = boot(d, args.bootstrap, args.seed)
         diffs.append({"k": k, "vs": base, "mean_diff": float(d.mean()), "ci95": [lo, hi],
                       "better": int((d > 0).sum()), "worse": int((d < 0).sum()), "tied": int((d == 0).sum())})
-    out = {"split": args.split, "queries": common, "rows": rows, "paired_vs_smallest_k": diffs,
+    out = {"split": args.split, "range": args.range, "queries": common, "rows": rows, "paired_vs_smallest_k": diffs,
            "bootstrap": args.bootstrap, "seed": args.seed}
-    path = res / f"aq_{args.split}_summary.json"
+    tag = f"_q{args.range[0]}-{args.range[1]}" if args.range else ""
+    path = res / f"aq_{args.split}_summary{tag}.json"
     path.write_text(json.dumps(out, indent=1))
     print(f"n = {len(common)} {args.split} queries answered and judged at every k in {args.ks}\n")
     print("| k | judge score (95% CI) | correct | grounded | complete | Recall@k | context words | prompt tokens | gen ms (median) |")
