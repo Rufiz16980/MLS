@@ -1,3 +1,5 @@
+> Superseded by the full report: `submission/report/report.tex` (PDF alongside). This file remains the evidence index.
+
 # Report draft (skeleton, 6-page main body)
 
 Working title: to be chosen (anonymous).
