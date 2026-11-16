@@ -1,0 +1,272 @@
+\documentclass{article}
+
+% INFR11269 Machine Learning Systems — Coursework Report (ICLR 2027 style; do not change the format).
+% Main body: six pages. References and Appendix do not count.
+
+\usepackage{iclr2027_conference,times}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\input{math_commands.tex}
+
+\title{Where the Time and the Evidence Go:\\CUDA Kernels and Retrieval Depth in a Spoken-Question RAG System}
+
+% Keep this line unchanged.
+\author{Anonymous coursework submission}
+
+% Keep this COMMENTED OUT.
+% \iclrfinalcopy
+
+\begin{document}
+
+\maketitle
+
+% Course-specific template fingerprint. Keep this line unchanged.
+\lhead{Under review as a report for UoE 26/27 Sem1 INFR11269: Machine Learning Systems}
+
+% ============================================================
+\section{Introduction}
+\label{sec:introduction}
+
+A spoken question travels through four stages before it is answered: speech recognition (ASR), a sentence encoder, dense retrieval over a 24{,}000-record finance corpus, and a large language model (LLM) that writes the answer from the retrieved records \citep{lewis2020rag}. We worked on both ends of this chain. For ASR we implemented the four GPU kernels the course model needs (RoPE, block reductions, tiled matrix multiply, tiled attention) and measured where the time goes. For retrieval-augmented generation (RAG) we asked one question: \emph{how much retrieved evidence should the generator receive when the question comes from ASR?} Retrieval depth $k$ is the main lever on generation cost, because every extra record is about 180 words of prompt, and it is also the obvious lever on answer quality, because more records raise the chance that the right one is present.
+
+\textbf{Baselines.} ASR: the course model with PyTorch operators, on the same GPU node and in the same job as ours. RAG: the supplied pipeline with $k=5$.
+\textbf{Our changes.} The four kernels with a profile-guided choice of tile size and queries per block; a depth study at $k\in\{1,5,20\}$ with paired, judged answers; and an adaptive depth policy that we designed from the depth study's mechanism.
+
+\textbf{Main findings.} (1) Our kernels are correct on every course test and transcribe the test recording exactly, but the full model is $2.45\times$ slower than PyTorch; 86\% of kernel time is the matrix multiply, which reaches 16--31\% of cuBLAS. Choosing tile 32 and 16 attention warps from ablations made it 17\% faster than the handout settings. (2) Recall rises steeply with $k$, but judged answer quality is flat: over 55 judged queries from two splits, $k=1$, 5 and 20 score 0.267, 0.294 and 0.273 while the prompt grows $15\times$. Extra records help queries whose best evidence is ranked low and hurt queries whose top record is already right, and the two effects cancel. (3) The adaptive policy does not beat a fixed depth; even a perfect gate would gain little here. The answers to the four required task questions are collected in Section~\ref{sec:questions}.
+
+% ============================================================
+\section{System and Technical Approach}
+\label{sec:approach}
+
+\textbf{Supplied.} The ASR model (GLM-ASR, an audio encoder of 32 layers over 1500 frames and a text decoder with grouped-query attention, GQA), its tests and benchmark; the RAG framework (data, a 384-dimensional encoder, exact cosine retrieval, a context builder that concatenates records, an LLM generator and an LLM judge). Generator and judge are the same model (EuroLLM-22B-Instruct) through the university's ELM service, at temperature 0.1 and 0.0. \textbf{Ours.} The five task files, an ablation harness that rebuilds each kernel with one compile-time flag, and the RAG experiment scripts (Appendix~\ref{app:code}). No supplied file was changed; a checksum guard verified this before every run.
+
+\subsection{ASR kernels}
+\textbf{RoPE.} One launch rotates the query and key heads together: each thread owns one (position, head, pair) element, computes $\sin$ and $\cos$ of position $\times$ inverse frequency, and rotates the pair \citep{su2024roformer}. The kernel is memory-bound, so the design goal is one read and one write per element.
+
+\textbf{Reductions.} Warp sums and maxima use register shuffles; a block reduction combines the warps through shared memory, with $-\infty$ (not 0) for missing warps in the maximum. RMSNorm and LayerNorm reduce one row per block. Softmax uses the online (maximum, sum) merge \citep{milakov2018online}: each thread keeps a running maximum and a sum rescaled to it, the block merges these pairs, and a second pass writes $\exp(x-m)/s$. This reads the row twice instead of three times.
+
+\textbf{Tiled GEMM.} Each block computes a TILE$\times$TILE output tile, staging tiles of the input and of the weight matrix in shared memory so that each loaded value is reused TILE times. The weight tile is stored with one padding column so that the 32 lanes of a warp read 32 different shared-memory banks, and bias and GELU are applied in the epilogue, saving a separate kernel's read and write.
+
+\textbf{Attention.} One warp per query, ATTN\_WARPS queries per block; the block loads keys and values into shared memory one tile at a time and every warp keeps a running maximum, normaliser and output accumulator (online softmax, as in FlashAttention \citep{dao2022flashattention}), so the $1500\times1500$ score matrix is never stored. GQA maps query head $h$ to key head $h/(H_q/H_k)$; causal masking stops each query at its own last key, while all warps still execute the same number of tile iterations so that block barriers stay valid.
+
+\textbf{Design choice: tune only what the profile says matters.} The profile (Table~\ref{tab:asr}) shows the matrix multiply and attention take over 99\% of kernel time, so we ran the guides' experiments for all four tasks but chose final settings only for those two: TILE~32 (handout 16) and ATTN\_WARPS~16 (handout 4).
+
+\subsection{RAG investigation}
+\textbf{Depth study.} We vary only $k$ and keep everything else fixed: ASR ran once on the GPU and its transcripts were cached, so every $k$ sees identical text; prompt, model, temperature and judge are the supplied ones. \textbf{Adaptive depth.} The depth study suggested that the best $k$ depends on whether the top record is already right (Section~\ref{sec:mechanism}). The policy uses the retriever's own scores, which are free: $k=1$ if the margin between the top two cosine scores $s_1-s_2$ is at least $\tau$, else $k=20$. To avoid tuning on the outcome, the protocol was fixed in advance: choose the feature ($s_1$ or the margin) by AUC for ``rank-1 record is relevant'' and $\tau$ by Youden's $J$, using only the practice split's relevance labels; then freeze both and test on the held-out dev split.
+
+% ============================================================
+\section{Experimental Methodology}
+\label{sec:methodology}
+
+\textbf{Hardware.} ASR on an NVIDIA RTX 2080 Ti (sm\_75, 68 SMs, 616\,GB/s peak), pinned by Slurm resource type on a teaching cluster, CUDA 12.8. Retrieval and encoding on a laptop CPU; generation and judging on the remote ELM service.
+
+\textbf{ASR measurements.} Correctness: the course tests compare each kernel with a CPU or cuBLAS reference on edge cases (odd sizes, inputs of $\pm100$, all-negative rows, one new query) and real model shapes; compute-sanitizer memcheck and racecheck on the small test cases; the full model must reproduce the reference transcript of the test recording. Cost: milliseconds per transcription of the 3.5\,s test recording (13 tokens), the mean of 3 runs, model loading excluded; per-operation GPU time from the course profiler; GB/s and GFLOP/s from the tests. PyTorch's time depends on the node's host CPU (806 to 1215\,ms on three nodes of the same GPU type), ours does not (three nodes within 1\%). We therefore compare with PyTorch only within one job on one node, and treat differences under 1\% as noise.
+
+\textbf{RAG data and metrics.} 350 practice and 125 dev spoken queries, with relevance labels (qrels) but no reference transcripts. Retrieval: Recall@$k$ and hit@$k$ (at least one relevant record in the top $k$) over all queries. Answers: the supplied judge scores correctness, grounding and completeness from 0 to 4 against the gold records; we report the normalised sum (0--1). We judged the first 30 practice and the first 28 dev queries at every $k$, paired (the same queries at every depth); the judge's output could not be parsed for 3 of 58 queries, which are excluded at every $k$ (practice $n=28$, dev $n=27$). Cost: prompt tokens returned by the API, generation latency, context words. Intervals are 95\% bootstrap intervals over queries (2000 resamples, seed 0), and differences between depths are paired. RAG timings exclude ASR (cached); generation latency depends on the shared service's load and is only compared within one run.
+
+% ============================================================
+\section{Results and Analysis}
+\label{sec:results}
+
+\subsection{ASR: correct, 2.45$\times$ slower than PyTorch, limited by the matrix multiply}
+
+All four kernels pass every course test, both sanitizers report zero errors, and the full model on our kernels transcribes the test recording exactly. Table~\ref{tab:asr} gives the cost. Switching on our kernels one task at a time on one node shows that RoPE and the reductions make the model \emph{faster} than PyTorch (806 to 705\,ms), because PyTorch builds RoPE and RMSNorm from chains of small operators, while our tiled GEMM makes it $4\times$ slower. In the profile of our submitted configuration, the matrix multiply is 86.1\% of kernel time and attention 13.3\%; RoPE, both norms and softmax together are 0.5\%.
+
+\begin{table}[t]
+\caption{ASR cost on an RTX 2080 Ti, ms per transcription of the test recording (mean of 3 runs, $\pm$ standard deviation where measured). Left: same job, same node. Right: kernels switched on one task at a time (one job, another node). All runs transcribe the test recording exactly.}
+\label{tab:asr}
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lr@{\hspace{1.5em}}lr}
+\toprule
+\multicolumn{2}{c}{Same job and node} & \multicolumn{2}{c}{Incremental (one job)} \\
+\midrule
+PyTorch only & 1096.2 $\pm$ 1.8 & PyTorch only & 806.3 \\
+Ours, submitted (tile 32, 16 warps) & 2698.8 $\pm$ 7.9 & + RoPE (Task 1) & 727.1 \\
+PyTorch only, repeated & 1103.8 $\pm$ 4.9 & + reductions (Task 2) & 705.2 \\
+\cmidrule{1-2}
+Ours, handout (tile 16, 4 warps)$^\dagger$ & 3294.0 $\pm$ 8.3 & + GEMM (Task 3) & 2998.2 \\
+Ours, tile 32 only$^\dagger$ & 2876.6 $\pm$ 9.6 & + attention (Task 4) & 3288.3 \\
+Ours, 16 warps only$^\dagger$ & 3148.9 $\pm$ 6.9 & & \\
+\bottomrule
+\end{tabular}}
+\end{center}
+\footnotesize{$^\dagger$ One job on a third node; our time differs by under 1\% between nodes (2698.8, 2711.3 and 2728.1\,ms for the submitted settings on three nodes).}
+\end{table}
+
+\textbf{Design choices that mattered.} Tile 32 alone saves 13\% end to end and 16 attention warps 4\%; together 17.2\% (3294 to 2728\,ms on one node), almost exactly the sum, because they act on different kernels. Two layout details matter more than any tuning constant: without the padding column of the weight tile the large multiplies are $1.7$--$2.3\times$ slower at tile 16 and $4.5\times$ slower at tile 32 (every lane hits the same bank), and without the $+1$ padding of the attention key tile the encoder case is $4.7\times$ slower. One-pass softmax is 27\% faster than the textbook three-pass version on the 59{,}264-wide vocabulary row. Not every change helps: \texttt{--use\_fast\_math} fails the RoPE test on the audio encoder, whose large angles exceed the accuracy of the fast $\sin/\cos$.
+
+\textbf{The gap to PyTorch is the matrix multiply} (Table~\ref{tab:gemm}). Tiling gives about $9\times$ over the naive kernel on every multi-row shape, but cuBLAS is another $3$--$6\times$ faster. The single-row \texttt{lm\_head} is the exception: a $32\times32$ tile keeps only one of its 32 rows busy, so tile 32 is slower than naive there, and tile 8 was fastest in our sweep. One constant cannot suit every shape.
+
+\begin{table}[t]
+\caption{Matrix multiply throughput (GFLOP/s) on model shapes, from the course test on the hand-in run; ours uses tile 32.}
+\label{tab:gemm}
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrr}
+\toprule
+Shape ($M\times N\times K$) & Naive & Ours & cuBLAS & Ours/naive & Ours/cuBLAS \\
+\midrule
+Dec.\ q\_proj ($64\times2048\times2048$) & 153 & 1462 & 4647 & 9.6$\times$ & 31\% \\
+Dec.\ down\_proj ($64\times2048\times6144$) & 193 & 1825 & 8143 & 9.5$\times$ & 22\% \\
+Enc.\ fc1 + GELU ($1500\times5120\times1280$) & 233 & 2107 & 13363 & 9.0$\times$ & 16\% \\
+Enc.\ conv2, im2col ($1500\times1280\times3840$) & 232 & 2130 & 13340 & 9.2$\times$ & 16\% \\
+lm\_head, one token ($1\times59264\times2048$) & 111 & 63 & 291 & 0.57$\times$ & 22\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{Answers to the task questions}
+\label{sec:questions}
+
+\textbf{Task 1, Q1 (bytes and bandwidth, audio-encoder case).} The case rotates 1500 positions $\times$ 20 heads $\times$ 16 pairs (32 of 64 dimensions) for both $q$ and $k$: 960{,}000 pairs. Each pair reads two floats and writes two, 16 bytes, so the kernel moves 15.36\,MB. It takes 0.031\,ms, i.e.\ 491.8\,GB/s, 80\% of the 616\,GB/s peak. This is why the block size barely matters for RoPE between 64 and 512 threads: the kernel is already close to the memory bandwidth limit.
+
+\textbf{Task 2, Q3 (reads of $x$ in softmax).} Ours reads each element twice: the first pass finds the maximum and the rescaled sum together with the online merge, and the second reads $x$ again to write the output. The textbook version reads it three times (maximum, sum, write). On the vocabulary row the extra pass costs 27\% (0.150 vs 0.118\,ms); on short rows the two are equal at the timer's resolution, probably because the row stays in cache.
+
+\textbf{Task 3, Q1 (global loads, $M=N=K=1024$).} The naive kernel loads one row of $x$ and one column of $w$ per output, $2K$ floats, so $2\times1024^3 = 2{,}147{,}483{,}648$ in total. With tiles of width 32 each staged value serves 32 outputs, so $2\times1024^3/32 = 67{,}108{,}864$, $32\times$ fewer. The measured gain is about $9\times$ (Table~\ref{tab:gemm}), because caches already absorb part of the naive kernel's repeated loads and ours is then limited by shared-memory reads and one output per thread; computing several outputs per thread from registers, as cuBLAS does \citep{volkov2008benchmarking}, is the next step.
+
+\textbf{Task 4, Q4 (key loads and the limit of ATTN\_WARPS).} A block loads every key of its head once, and a head of 1500 queries has $1500/4=375$ blocks with 4 warps, so each key is loaded 375 times per head per layer (94 times with our 16 warps). Measured on the encoder case, 1, 2, 4, 8 and 16 warps take 103.6, 30.1, 11.5, 8.3 and 7.6\,ms. The gain shrinks (27\% from 4 to 8, 9\% from 8 to 16) once key loading stops being the bottleneck. The limits are 32 warps per block (1024 threads), shared memory and registers per block, and that fewer, larger blocks leave SMs idle at the end of the grid.
+
+\subsection{RAG: more evidence, same answers}
+
+Retrieval itself is cheap and does not depend on $k$ (about 0.5\,ms for an exact search over 24{,}000 records; encoding the query takes 21--54\,ms), but coverage rises steeply with depth (Table~\ref{tab:rag}): on practice, Recall@$k$ grows from 0.229 at $k=1$ to 0.579 at $k=20$, and the dev split agrees. Even at $k=20$, a quarter of queries have no relevant record at all (hit@20 = 0.737 practice, 0.768 dev).
+
+\begin{table}[t]
+\caption{Retrieval depth: quality and cost. Recall and hit@$k$ over all queries; judge score (0--1, 95\% bootstrap CI) on the judged subset, the same queries at every $k$; prompt tokens and median generation latency on the judged subset.}
+\label{tab:rag}
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccc}
+\toprule
+ & $k=1$ & $k=5$ (baseline) & $k=20$ \\
+\midrule
+Recall@$k$, practice / dev ($n$=350 / 125) & 0.229 / 0.209 & 0.421 / 0.379 & 0.579 / 0.580 \\
+hit@$k$, practice / dev & 0.411 / 0.376 & 0.591 / 0.584 & 0.737 / 0.768 \\
+\midrule
+Judge score, practice ($n$=28) & 0.250 (0.13--0.38) & 0.268 (0.16--0.39) & 0.292 (0.18--0.43) \\
+Judge score, dev ($n$=27, held out) & 0.284 (0.16--0.41) & 0.321 (0.20--0.44) & 0.253 (0.12--0.39) \\
+Judge score, pooled ($n$=55) & 0.267 & 0.294 & 0.273 \\
+\midrule
+Prompt tokens, practice / dev & 305 / 315 & 1249 / 1022 & 4730 / 4351 \\
+Generation, median ms, practice / dev & 1803 / 2222 & 3782 / 5271 & 4303 / 7334 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+Judged answer quality does not follow coverage. Pooled over both splits, the paired differences are $k5-k1=+0.027$ (95\% CI $-0.053$ to $+0.111$), $k20-k1=+0.006$ ($-0.077$ to $+0.095$) and $k20-k5=-0.021$ ($-0.091$ to $+0.050$): all within $\pm0.03$, none significant, while the prompt grows $15\times$ from $k=1$ to $k=20$ and median generation time $2.4$--$3.3\times$. An earlier batch of 15 queries had suggested a clear gain for $k=20$ (0.361 vs 0.178); with the next 13 queries under identical settings the gain vanished, so we withdrew that claim. The study can rule out large effects, not small ones: differences below about 0.09 are not detectable at $n=55$.
+
+\subsection{Why the averages are flat: coverage against dilution}
+\label{sec:mechanism}
+
+Grouping the 28 judged practice queries by the rank of their first relevant record explains the flat average. Queries whose evidence is at rank 1 ($n=11$) score best at $k=1$ and lose as records are added (0.447, 0.394, 0.386 at $k=1,5,20$), consistent with extra records acting as distractors \citep{liu2024lost}. Queries whose evidence is at ranks 2--5 ($n=8$) gain (0.208, 0.250, 0.344), because depth brings the evidence in. Queries with no relevant record in the top 20 ($n=5$) score 0 at every depth. The gains and losses cancel. These groups were formed after seeing the data and are small, so this is an explanation, which the next experiment tests.
+
+\begin{table}[t]
+\caption{Left: judge score by the rank of the first relevant record (28 judged practice queries). Right: adaptive depth on the 27 held-out dev queries, paired with fixed $k=5$ (95\% CI); the oracle gives $k=1$ exactly when the rank-1 record is relevant.}
+\label{tab:mech}
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcc@{\hspace{1.5em}}lccc}
+\toprule
+First relevant at & $n$ & $k$ = 1 / 5 / 20 & Policy (dev) & Score & vs $k=5$ & Tokens \\
+\midrule
+rank 1 & 11 & 0.447 / 0.394 / 0.386 & fixed $k=5$ & 0.321 & -- & 1022 \\
+ranks 2--5 & 8 & 0.208 / 0.250 / 0.344 & fixed $k=20$ & 0.253 & $-0.068$ & 4351 \\
+ranks 6--20 & 4 & 0.104 / 0.292 / 0.292 & adaptive & 0.272 & $-0.049$ ($-0.12$, $+0.02$) & 3367 \\
+not in top 20 & 5 & 0 / 0 / 0 & oracle & 0.306 & $-0.015$ ($-0.09$, $+0.06$) & 2419 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\textbf{Adaptive depth.} If the two effects can be separated, a policy that gives $k=1$ to queries whose top record is right and $k=20$ to the rest should beat any fixed $k$. On practice labels the margin feature won (AUC 0.719 vs 0.707 for $s_1$; 0.691 on dev) with $\tau=0.0122$. The gate is weak: it sends 30\% (practice) and 26\% (dev) of queries to $k=1$, and 27\% and 34\% of those are wrong; a wrong $k=1$ loses the relevant record entirely. At an equal average depth ($k\approx15$) a fixed depth retrieves more (Recall 0.534 vs 0.481 on practice, 0.553 vs 0.503 on dev). On the held-out dev answers the policy scores 0.272 against 0.321 for fixed $k=5$ (difference $-0.049$, CI $-0.123$ to $+0.015$) while using $3.3\times$ the prompt tokens. Even an oracle gate that knows the true rank-1 relevance scores only 0.306 on dev and 0.315 on practice (difference to $k=5$: $-0.015$ and $+0.048$, both not significant). The ceiling is low because the zero-score floor, retrieval misses that no depth can repair, dominates the average.
+
+\subsection{End-to-end cost}
+
+For one spoken question at $k=5$, the stages add up to about 5.4\,s with PyTorch ASR (1555\,ms mean ASR over the 350 practice queries; generation 70\% of the total; encoding and retrieval under 1\%) and about 7.6\,s with our kernels (ASR scaled by the measured $2.45\times$; ASR and generation about half each). The stages ran on different machines, so this is an estimate rather than one measured run. It puts the two halves of the work on one scale: our kernels add about 2.3\,s per question, and moving from $k=1$ to $k=20$ adds about 2.5\,s of generation and $15\times$ the tokens without a measurable quality gain.
+
+% ============================================================
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+
+On the ASR side the evidence is precise: correctness is established at three levels, the cost is measured against the right baseline, and the profile shows that the only kernel worth further work is the matrix multiply. Register tiling (several outputs per thread), vectorised loads and a shape-dependent tile, small for single-row multiplies such as \texttt{lm\_head}, are the next steps. On the RAG side the answer to our question is that, in this system, retrieval depth is a cost decision, not a quality decision: $k=1$ or $k=5$ answers as well as $k=20$ under this judge at a fraction of the tokens. Our own change, adaptive depth, was tested with a protocol fixed in advance and a held-out split, and failed for a clear reason: the confidence signal mis-routes a third of its confident queries, and a quarter of queries have no relevant record in the top 20.
+
+\textbf{Limitations.} Answer quality rests on 55 judged queries; batches of about 15 queries disagree with each other by as much as any depth effect. The judge is the same model as the generator, credits only the gold records, and cannot tell whether ASR changed the question, because no reference transcripts exist for the queries \citep{zheng2023judging}. Generation latency depends on a shared service. All GPU results are from one GPU type, and the kernel settings were searched over two constants only. \textbf{What we would do next:} a reranker or query rewriting to reduce retrieval misses, the case that dominates the error budget; and register tiling in the GEMM, the stage that dominates the ASR cost.
+
+% References are excluded from the main-body page limit.
+\bibliography{references}
+\bibliographystyle{iclr2027_conference}
+
+\appendix
+\section{Hand-in output: \texttt{make test} and \texttt{./run.sh --profile}}
+\label{app:output}
+One Slurm job on one node; GPU from \texttt{nvidia-smi -L}: NVIDIA GeForce RTX 2080 Ti. Submitted settings: TILE 32, ATTN\_WARPS 16, ROPE\_THREADS 256, REDUCE\_THREADS 256. The full text is \texttt{outputs/handin\_make\_test\_and\_profile.txt} in the supplementary code; the key lines follow.
+{\tiny
+\begin{verbatim}
+Task 1 (RoPE): ALL PASS        audio encoder (partial, 32/64)  0.031 ms  491.8 GB/s (80% of peak)
+Task 2 (reductions): ALL PASS  layernorm, audio encoder        0.040 ms  381.0 GB/s (62% of peak)
+                               softmax, vocabulary row (59264) 0.118 ms
+Task 3 (tiled GEMM): ALL PASS  encoder fc1 + GELU  9.330 ms  2107 GFLOP/s (naive 233, cuBLAS 13363)
+Task 4 (attention): ALL PASS   audio encoder (20 heads, 1500)  7.526 ms  1531 GFLOP/s
+GPU time per operation, one transcription (2846.5 ms in kernels):
+  linear 2757 calls 2449.5 ms 86.1% | attention 396 calls 378.3 ms 13.3%
+  rmsnorm 6.7 | silu_mul 3.5 | rope 3.0 | layernorm 2.4 | softmax 1.5 | embedding 1.3 | im2col 0.2 ms
+Time: 2711.3 ms per transcription (+/- 12.7 ms), 208.6 ms per token
+Peak GPU memory: 8.56 GiB   Accuracy: 100.0%   Status: PASS
+Transcription: Concord returned to its place amidst the tents.
+\end{verbatim}
+}
+
+\section{Kernel ablations}
+\label{app:ablations}
+Each variant is the same task file built with one compile-time flag, checked by the same tests; median of 3 runs, ms per call.
+{\small
+\begin{tabular}{lrrrrr}
+\toprule
+Attention, encoder case & 1 warp & 2 & 4 (handout) & 8 & 16 (ours) \\
+\midrule
+ms & 103.6 & 30.1 & 11.5 & 8.3 & 7.6 \\
+\bottomrule
+\end{tabular}
+}
+
+\noindent Further results: GEMM tile 8 / 16 / 32 on lm\_head 1.537 / 2.723 / 4.842\,ms (tile 8 best for one row); no weight-tile padding $1.7$--$2.3\times$ slower (tile 16), $4.5\times$ (tile 32); strided weight loads 5--43\% slower; no key padding in attention $4.7\times$ slower; atomic RMSNorm reduction $3.7\times$ slower; three-pass softmax 27\% slower on the vocabulary row; reductions with 1024 threads $2.9\times$ faster on the vocabulary row but $1.9\times$ slower on a 1280-wide LayerNorm row; \texttt{--use\_fast\_math} fails the audio-encoder RoPE case.
+
+\section{Supplementary code}
+\label{app:code}
+\texttt{hw1-asr/csrc/}: the five task files. \texttt{hw1-asr/ablation/}: variant builder and Slurm jobs. \texttt{rag/extensions/}: transcript cache, depth sweep, answer generation with token counts, paired summary with bootstrap intervals, adaptive depth, and the two-stage demo used in the video. \texttt{EXPERIMENT\_LOG.md}: every run with its command and numbers.
+
+% Keep this line unchanged.
+\newpage
+
+\section*{AI declaration}
+We used an AI assistant (Claude, Anthropic) throughout this coursework, as the course team permitted. It helped write and debug the CUDA kernels and the experiment scripts, proposed and ran the analyses from our measured results, kept the experiment log, and drafted the text of this report, which we then reviewed and edited. All numbers come from runs we executed on the course GPU cluster and the ELM service. We checked every design choice and result and are responsible for the content. The ELM service (EuroLLM-22B-Instruct) was used only as the system's generator and judge.
+
+\section*{Group information}
+Group ID: XXX
+
+Information of group member A:
+\begin{itemize}
+    \item Name: John Doe
+    \item UUN: sXXXXXXX
+\end{itemize}
+
+% Information of group member B:
+% \begin{itemize}
+%     \item Name: John Doe
+%     \item UUN: sXXXXXXX
+% \end{itemize}
+
+\end{document}
