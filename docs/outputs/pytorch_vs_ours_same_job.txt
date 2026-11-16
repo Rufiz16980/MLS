@@ -1,0 +1,6 @@
+# Log entry K09: one Slurm job, one node: ./run.sh --cuda none --profile; ./run.sh --profile; ./run.sh --cuda none --profile
+damnii07.inf.ed.ac.uk
+GPU 0: NVIDIA GeForce RTX 2080 Ti
+[PyTorch only]  Time: 1096.2 ms per transcription (+/- 1.8 ms), 84.3 ms per token   Peak GPU memory: 8.88 GiB   Status: PASS
+[our kernels]   Time: 2698.8 ms per transcription (+/- 7.9 ms), 207.6 ms per token  Peak GPU memory: 8.56 GiB   Status: PASS
+[PyTorch only]  Time: 1103.8 ms per transcription (+/- 4.9 ms), 84.9 ms per token   Peak GPU memory: 8.88 GiB   Status: PASS

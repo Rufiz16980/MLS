@@ -41,3 +41,10 @@ There is no reference (true) text for the 475 audio queries: the slides list the
 - Video (<= 10 min; actual recorded run of the system with input and output; last 2 min answer the two released questions): not started.
 - Optional supplementary code zip: README, our files vs supplied, no Git history or personal paths.
 - Merge with the teammate's version: their work is not in this repo.
+
+## Update 2026-11-16 (course announcements)
+- ASR: one guide question per task (four), anywhere in the report but easy to find; "Try this" optional. Our four picks and answers: `docs/report/report-video-notes.md` section 1 (T1 Q1, T2 Q3, T3 Q1, T4 Q4). Requirement met in evidence.
+- Long `make test` / profile output may go in the appendix: `docs/outputs/handin_make_test_and_profile.txt`.
+- Supplementary code = our files only: `scripts/make_supplementary_zip.sh` builds supplementary_code.zip (README, 5 task files, ablation harness, RAG extensions, outputs, experiment log; personal-data check).
+- Video questions fixed: (1) main design choice and why, (2) how we checked our work, with an example. Talking points: notes section 2.
+- Still open: the recorded end-to-end demo run (video), optional robustness run (ELM calls), report writing.
