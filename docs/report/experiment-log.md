@@ -737,3 +737,45 @@ Estimated totals at the course baseline k = 5 (ASR + about 40 ms embedding + ret
 - The two "knobs" are of similar size: our kernels add about 2.3 s to ASR versus PyTorch; moving from k = 1 to k = 20 adds about 2.5 s of generation (and 15x the prompt tokens) for no measurable quality gain (E15). Retrieval depth is a cost decision, not a quality one, in this system.
 - Limits: different machines per stage; generation latency depends on the shared ELM service load; ASR for our kernels is extrapolated from the test clip ratio (the per-token cost ratio is the same, 207.6 vs 84.3 ms per token, K09, so the extrapolation assumes similar transcript lengths, about 13-20 tokens).
 
+
+
+## E19: Held-out dev replication of answer quality versus depth, and a clean test of adaptive k (uses ELM, about 169 calls)
+
+**Need.** E15 rests on 28 practice queries, and E17's adaptive-k replay used practice queries that were also in its tuning split. Repeat the depth experiment on the first 28 *dev* queries, which were never used for tuning, with identical settings
+(same cached dev transcripts, prompt, judge and rubric, one judge repeat, k in {1, 5, 20}). Then replay the frozen adaptive policy on these answers (no further calls).
+
+```bash
+# course repo root, venv python; the loop re-ran with the failing query excluded (judge reply was malformed JSON)
+EXCLUDE="q_7f3179f293749f08" bash rag/extensions/run_answer_quality.sh 28 dev
+~/mls-rag-env/bin/python rag/extensions/adaptive_k.py
+```
+Calls: 84 generation + about 85 judge (28 + 27 + 27 judged, plus 3 repeated attempts on the unparsable query) = about 169. The judge could not parse **1 of 28** dev answers (at k = 5); with the 2 practice failures in E15, 3 of 58 queries (5%) were dropped from judging at every depth.
+
+```text
+n = 27 dev queries answered and judged at every k in [1, 5, 20]
+| k | judge score (95% CI) | correct | grounded | complete | Recall@k | context words | prompt tokens | gen ms (median) |
+| 1 | 0.284 (0.157-0.410) | 1.15 | 1.30 | 0.96 | 0.266 | 165 | 315 | 2222 |
+| 5 | 0.321 (0.198-0.444) | 1.37 | 1.44 | 1.04 | 0.372 | 678 | 1022 | 5271 |
+| 20 | 0.253 (0.120-0.392) | 1.04 | 1.04 | 0.96 | 0.499 | 3130 | 4351 | 7334 |
+paired vs k = 1: k = 5 +0.037 (-0.049 to +0.120), 7 better / 5 worse / 15 tied;  k = 20 -0.031 (-0.136 to +0.074), 5 / 7 / 15
+```
+Pooled over practice (28) and dev (27), n = 55 judged at every depth (paired bootstrap, 5,000 resamples): mean judge score k = 1: 0.267 (0.182 to 0.359); k = 5: 0.294 (0.212 to 0.379); k = 20: 0.273 (0.185 to 0.367).
+Differences: k5 - k1 = +0.027 (-0.053 to +0.111); k20 - k1 = +0.006 (-0.077 to +0.095); k20 - k5 = -0.021 (-0.091 to +0.050). Zero-score answers: 30, 26 and 31 of 55.
+
+Replay of the frozen adaptive policy (k = 1 if score margin >= 0.0122 else 20) on the dev answers, n = 27, no new calls:
+| policy | judge score (95% CI) | diff vs fixed k = 5 (95% CI) | better / worse / tied | mean k | prompt tokens |
+| fixed k = 1 | 0.284 (0.157-0.410) | -0.037 (-0.120 to +0.049) | 5 / 7 / 15 | 1.0 | 315 |
+| fixed k = 5 | 0.321 (0.198-0.444) | 0 | - | 5.0 | 1022 |
+| fixed k = 20 | 0.253 (0.120-0.392) | -0.068 (-0.151 to +0.009) | 2 / 7 / 18 | 20.0 | 4351 |
+| adaptive | 0.272 (0.133-0.407) | -0.049 (-0.123 to +0.015) | 3 / 6 / 18 | 15.8 | 3367 |
+| oracle (k = 1 if rank 1 relevant, else 20) | 0.306 (0.173-0.435) | -0.015 (-0.093 to +0.059) | 4 / 5 / 18 | 11.6 | 2419 |
+Retrieval-side numbers from `adaptive_k.py` for the same policy: dev Recall 0.503 against fixed k = 15 with the same mean depth 0.553 (practice 0.481 vs fixed k = 14 0.534).
+
+**What it means.**
+- The flat quality-versus-depth result replicates on a held-out split: with n = 27, k = 5 is nominally best (0.321), k = 20 nominally worst (0.253), and every paired interval includes zero. Pooled over 55 queries all differences are at most 0.03, with intervals of about +/- 0.08,
+  so differences below roughly 0.09 are not detectable and no benefit of retrieving 20 records instead of 5 is shown, at 4.3x the prompt tokens (4351 vs 1022) and 1.4x the generation time (7.3 vs 5.3 s).
+- The batches disagree with each other (dev queries 1 to 15: k = 5 best, +0.106; queries 16 to 28: k = 20 worst, -0.146, interval -0.292 to -0.007), as in E12 and E15. Sampling noise between small batches is as large as any depth effect, which is the main limitation of this study.
+- Adaptive k is now tested cleanly: on held-out dev answers it is 0.049 below fixed k = 5 (interval -0.123 to +0.015) while using 3.3x the prompt tokens (3367 vs 1022). Even the oracle that knows whether the top record is relevant is 0.015 below k = 5. So the confidence gate has no benefit to deliver in this setting;
+  the negative result of E17 holds on a split not used for tuning. (E17's note "not run, deliberately: a dev confirmation" is superseded by this entry.)
+- Recall@k on these dev queries (0.27, 0.37, 0.50) rises with depth much as on the whole dev split (0.21, 0.38, 0.58), but judged quality does not follow, consistent with the coverage-versus-dilution mechanism (E16) and the judge scoring only against the labelled gold evidence (E13).
+**Limits.** n = 27 dev + 28 practice, one judge repeat (temperature 0, so repeats would add nothing), one judge model, one generator run (temperature 0.1); 3 queries dropped for unparsable judge replies (5%; could bias towards queries with long or unusual answers); generation latency depends on shared ELM load.
