@@ -9,8 +9,11 @@ Shared notes for the team. Keep this folder up to date; it is the single place f
 | [setup/gpu-access.md](setup/gpu-access.md) | How to reach the Informatics GPU cluster (each person does this) |
 | [setup/data-install.md](setup/data-install.md) | Install course data and the RAG venv (one script) |
 | [TODO.md](TODO.md) | Everything left to finish, with commands (report, video, hand-in, GitHub) |
-| [report/latex/report.tex](report/latex/report.tex) | Complete report draft on the course template (see its README to build) |
-| [video/VIDEO_SCRIPT.md](video/VIDEO_SCRIPT.md) | 10-minute video script with demo commands and recording checklist |
+| [../submission/report/report.tex](../submission/report/report.tex) | **The report** (course template; PDF next to it; format checker PASS, 6-page body) |
+| [report/VIDEO_SCRIPT.md](report/VIDEO_SCRIPT.md) | **The video script**: 10 minutes, narration, slides, demo commands (`rag/extensions/demo_query.py`) |
+| [report/report-video-notes.md](report/report-video-notes.md) | Key answers: the four task questions, the two video questions, report summary |
+| [report/latex/report.tex](report/latex/report.tex) | Alternative report draft written in parallel on the laptop (cross-check only) |
+| [video/VIDEO_SCRIPT.md](video/VIDEO_SCRIPT.md) | Alternative video script written in parallel on the laptop (cross-check only) |
 | [laptop/](laptop/) | Laptop-side docs: task answers, notes, requirements checklist, analysis scripts |
 | [report/README.md](report/README.md) | Report draft and the experiment log (every result with its command) |
 | [setup/cluster-workflow.md](setup/cluster-workflow.md) | What persists on the cluster, per-session routine |
@@ -28,7 +31,8 @@ Full planning document (Claude Doc): https://claude.ai/artifact/PDHfaidEkNQ2chxR
 | --- | --- |
 | `overlay/` | OUR files only (task kernels, RAG extensions), copied into a course checkout by `scripts/sync_overlay.sh` |
 | `tools/guard/` | Frozen-file guard (`guard.py`, `frozen.json`, pre-commit hook). Install the hook: `ln -sf ../../tools/guard/pre-commit .git/hooks/pre-commit` |
-| `scripts/` | `setup_rag_local.sh`, `sync_overlay.sh`, `pull_overlay.sh` |
+| `scripts/` | `setup_rag_local.sh`, `sync_overlay.sh`, `pull_overlay.sh`, `make_supplementary_zip.sh` |
+| `submission/` | Hand-in material: `report/` (LaTeX + PDF), `README.md` for the code zip |
 | `.github/workflows/ci.yml` | CI: guard on a pristine course clone, tamper test, secret/data hygiene |
 
 Guard usage: `python3 tools/guard/guard.py run --course <course dir> -- make test1` (checks before and after the command).

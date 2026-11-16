@@ -229,20 +229,46 @@ Transcription: Concord returned to its place amidst the tents.
 \end{verbatim}
 }
 
-\section{Kernel ablations}
+\section{Kernel ablations and profiles}
 \label{app:ablations}
-Each variant is the same task file built with one compile-time flag, checked by the same tests; median of 3 runs, ms per call.
-{\small
-\begin{tabular}{lrrrrr}
+Each variant is the same task file built with one compile-time flag and checked by the same tests; median of 3 runs of the course test, ms per call.
+
+\begin{center}
+\small
+\begin{tabular}{p{3.6cm}p{3.4cm}p{5.6cm}}
 \toprule
-Attention, encoder case & 1 warp & 2 & 4 (handout) & 8 & 16 (ours) \\
+Kernel / case & Change & Result\\
 \midrule
-ms & 103.6 & 30.1 & 11.5 & 8.3 & 7.6 \\
+GEMM, encoder fc1 ($1500\times5120\times1280$) & tile 16 $\to$ 32; 8; no $W$ padding & 14.2 $\to$ 9.3\,ms; 24.8; 24.0 (1.7$\times$ slower)\\
+GEMM, lm\_head (1 row) & tile 16 $\to$ 8 / 32 & 2.72 $\to$ 1.54 / 4.84\,ms: the best tile depends on the shape\\
+Attention, audio encoder & 4 warps $\to$ 1 / 2 / 8 / 16; no $K$ padding & 11.5 $\to$ 103.6 / 30.1 / 8.3 / 7.6\,ms; 54.2\,ms (4.7$\times$)\\
+Softmax, vocabulary row & 256 $\to$ 32 / 1024 threads; 3-pass & 0.118 $\to$ 0.886 / 0.041\,ms; 0.150\,ms (+27\%)\\
+LayerNorm, 1280-wide row & 256 $\to$ 1024 threads & 1.9$\times$ slower (too little work per thread)\\
+RMSNorm, decoder & shuffle $\to$ atomic reduction & 0.006 $\to$ 0.022\,ms (3.7$\times$)\\
+GEMM, large cases & coalesced $\to$ strided $W$ loads & 5--43\% slower\\
+RoPE, audio encoder & 32--1024 threads; fast math & flat between 64 and 512 (memory-bound, 80\% of peak); fast math fails the test\\
 \bottomrule
 \end{tabular}
-}
+\end{center}
 
-\noindent Further results: GEMM tile 8 / 16 / 32 on lm\_head 1.537 / 2.723 / 4.842\,ms (tile 8 best for one row); no weight-tile padding $1.7$--$2.3\times$ slower (tile 16), $4.5\times$ (tile 32); strided weight loads 5--43\% slower; no key padding in attention $4.7\times$ slower; atomic RMSNorm reduction $3.7\times$ slower; three-pass softmax 27\% slower on the vocabulary row; reductions with 1024 threads $2.9\times$ faster on the vocabulary row but $1.9\times$ slower on a 1280-wide LayerNorm row; \texttt{--use\_fast\_math} fails the audio-encoder RoPE case.
+\noindent End to end with all our kernels (one job, one node): GEMM tile 8 4992.2\,ms, tile 16 3288.3\,ms, tile 32 2865.2\,ms. Profile shares on the PyTorch path (same recording): linear 47.6\%, attention 22.5\%, RoPE 25.0\%, RMSNorm 4.2\%; with our kernels: linear 86.1\%, attention 13.3\%, everything else 0.6\%.
+
+\section{Additional RAG detail}
+\label{app:rag}
+\begin{center}
+\small
+\begin{tabular}{rrrrr}
+\toprule
+$k$ & Recall@$k$ (95\% CI) & hit@$k$ & context words & retrieval ms\\
+\midrule
+1 & 0.229 (0.196--0.265) & 0.411 & 175 & 0.44\\
+5 & 0.421 (0.378--0.464) & 0.591 & 897 & 0.45\\
+20 & 0.579 (0.534--0.621) & 0.737 & 3640 & 0.44\\
+100 & 0.770 (0.732--0.806) & 0.880 & 17957 & 0.45\\
+\bottomrule
+\end{tabular}
+\end{center}
+Practice split, 350 queries; MRR@10 0.489, NDCG@10 0.420 (dev 0.460 and 0.398). For 12\% of queries no relevant record appears even in the top 100. Of the 55 judged queries, 30, 26 and 31 answers score zero at $k=1$, 5 and 20: the judge credits only the labelled gold records. Judge failures (unparseable output): 2 of 30 practice and 1 of 28 dev queries, excluded at every depth.
 
 \section{Supplementary code}
 \label{app:code}

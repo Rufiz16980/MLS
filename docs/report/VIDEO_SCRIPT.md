@@ -68,7 +68,8 @@ nvidia-smi -L
 cd hw1-asr && make -s test 2>&1 | grep -E "ALL PASS|FAIL"; cd ..
 python rag/extensions/demo_query.py asr --query-id QID
 ```
-`nvidia-smi -L` prints a UUID: crop it or run `nvidia-smi -L | sed 's/ (UUID.*//'`. The ASR step loads the model first (up to 3 minutes on a fresh node): cut the wait and caption it. Output: transcript, ASR time, the cached PyTorch transcript, `-> rag/results/demo_transcript.json`.
+`nvidia-smi -L` prints a UUID: crop it or run `nvidia-smi -L | sed 's/ (UUID.*//'`.
+Optional extra evidence on camera, from `hw1-asr` (each `run.sh` loads the model; cut the wait): `make test3 2>&1 | tail -n 22` (naive / ours / cuBLAS for every GEMM case, all PASS), then `./run.sh --cuda none` (PyTorch, about 1.1 s) and `./run.sh` (ours, about 2.7 s, the same exact transcript). To keep loading short, run `./run.sh --cuda none > /dev/null 2>&1` once off camera first (warms the file cache). The ASR step loads the model first (up to 3 minutes on a fresh node): cut the wait and caption it. Output: transcript, ASR time, the cached PyTorch transcript, `-> rag/results/demo_transcript.json`.
 
 **Copy the transcript to the laptop (off camera)**, from the laptop's course repo root:
 ```bash
