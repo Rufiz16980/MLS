@@ -8,6 +8,10 @@ Shared notes for the team. Keep this folder up to date; it is the single place f
 | [PLAN.md](PLAN.md) | Plan summary: requirements, frozen files, research plans A/B/C |
 | [setup/gpu-access.md](setup/gpu-access.md) | How to reach the Informatics GPU cluster (each person does this) |
 | [setup/data-install.md](setup/data-install.md) | Install course data and the RAG venv (one script) |
+| [TODO.md](TODO.md) | Everything left to finish, with commands (report, video, hand-in, GitHub) |
+| [report/latex/report.tex](report/latex/report.tex) | Complete report draft on the course template (see its README to build) |
+| [video/VIDEO_SCRIPT.md](video/VIDEO_SCRIPT.md) | 10-minute video script with demo commands and recording checklist |
+| [laptop/](laptop/) | Laptop-side docs: task answers, notes, requirements checklist, analysis scripts |
 | [report/README.md](report/README.md) | Report draft and the experiment log (every result with its command) |
 | [setup/cluster-workflow.md](setup/cluster-workflow.md) | What persists on the cluster, per-session routine |
 | [setup/elm-api-key.md](setup/elm-api-key.md) | How to request and handle your own ELM API key |
