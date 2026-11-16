@@ -31,6 +31,7 @@ sbatch ablation/ablate.sbatch --stage sweep   # kernel ablations; stages: check 
 | `run_answer_quality.sh` | generate + judge for k in {1, 5, 20} on the first N queries |
 | `answer_quality_summary.py` | paired comparison across k with bootstrap 95% CIs |
 | `adaptive_k.py` | adaptive depth (k = 1 when the top-2 score margin is large, else 20): tuned on practice, checked on dev, replayed on judged answers (no API calls) |
+| `demo_query.py` | two-stage demo of one spoken query: `asr` on the GPU with our kernels, then `answer` on a machine with the ELM key (retrieval, one generation call, per-stage times) |
 
 ```bash
 python rag/extensions/transcribe_split.py --split practice        # GPU
