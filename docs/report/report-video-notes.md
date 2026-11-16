@@ -51,11 +51,12 @@ Recommended: *we tuned only the GEMM and attention, chosen from a profile, and h
 - RAG retrieval: Recall@k rises 0.229 (k=1), 0.421 (5), 0.579 (20) on practice; dev agrees (E09, E11). hit@20 = 0.737: a quarter of queries have no relevant record in the top 20 (E14).
 - RAG answers: judge score 0.250 / 0.268 / 0.292 at k = 1 / 5 / 20, all differences inside the noise (+-0.12), while prompt tokens grow 305 to 4730 and generation time 1.8 to 4.3 s (E15). **Quality is flat, cost is not.**
 - Adaptive k: no gain over fixed k; even a perfect gate only +0.05 (n.s.) (E17).
+- Held-out replication on dev (E19, n = 27, 168 ELM calls): 0.284 / 0.321 / 0.253 at k = 1 / 5 / 20, again no significant difference. Pooled practice + dev (n = 55): 0.267 / 0.294 / 0.273, every difference within +-0.03 and not significant; differences under about 0.09 are not detectable at this n. Adaptive k on held-out dev answers: 0.272, below fixed k = 5 (-0.049, n.s.) at 3.3x its prompt tokens. **The flat-quality finding replicates on a split we never tuned on.**
 - End to end at k = 5: about 5.4 s per spoken query with PyTorch ASR (generation 70%), 7.6 s with ours (half ASR, half generation) (E18).
 
 **Why.** More records help queries whose rank-1 record is wrong (coverage) and hurt queries whose rank-1 record is right (dilution: 0.447 at k=1 vs 0.386 at k=20 for those), and the two cancel on average (E16). Queries with no relevant record in the top 20 score zero at every k (E13), which caps any depth policy. ASR side: our GEMM computes one output per thread from shared memory, cuBLAS uses register tiling and vector loads.
 
-**Limitations.** n = 28 judged queries (wide CIs), one judge run, same model as generator and judge; judge cannot see whether ASR changed the question (no reference transcripts exist for the queries); RAG stages measured on different machines; ASR on one GPU type (2080 Ti); kernel tuning only over two knobs.
+**Limitations.** n = 55 judged queries over two splits (CIs about +-0.08 pooled; batches of 15 disagree with each other by as much as any depth effect); 3 of 58 judge outputs unparseable and excluded, one judge run, same model as generator and judge; judge cannot see whether ASR changed the question (no reference transcripts exist for the queries); RAG stages measured on different machines; ASR on one GPU type (2080 Ti); kernel tuning only over two knobs.
 
 ## 4. Anonymity checklist
 No names, UUN, group ID, repo link or personal paths in the report, video or code zip; neutral file names (report.pdf, video.mp4, supplementary_code.zip); names and UUNs only on the final declaration page; AI use declared there.

@@ -23,7 +23,7 @@ Sources re-read: `01_submission_requirements.pdf`, `02_group_report_rubric.pdf`,
 | Judge settings reported, limits of automated scores (submission req.) | done | E12, E13, E15 |
 | Explain why (mechanisms), limitations, alternatives (rubric) | done | E16 coverage vs dilution, E17 adaptive k + oracle bound, E18 cost breakdown |
 | Technical substance of the RAG change (rubric: technical work 30) | done | E17 adaptive k: implemented, protocol fixed in advance, tuned on practice labels, held-out dev check, replay on judged answers, oracle bound; negative result with mechanism |
-| Trustworthy evidence, robustness tests (rubric "Excellent") | GAP | answer quality only on 28 practice queries; no dev-split confirmation; k = 2 and 10 not run; no judge-repeat reliability check |
+| Trustworthy evidence, robustness tests (rubric "Excellent") | done | E19 held-out dev replication (n = 27) + pooled n = 55; adaptive k re-tested on held-out dev; limitation: small batches noisy |
 
 ## Real ASR data question
 There is no reference (true) text for the 475 audio queries: the slides list the supplied data as corpus, audio, manifest (query IDs, split, audio paths), qrels and embeddings; `rag_corpus/README.md` says "Audio provides the query input; qrels support evaluation"; the slides say public judging "cannot verify that ASR preserved the intended question". Only the single hw1 test clip has a reference (`test_audio.txt`). So word error rate cannot be measured on the RAG queries. Real-ASR experiments are still possible without references: perturb the audio (noise, speed) and re-transcribe on the GPU, or compare two ASR implementations' transcripts, and measure the change in retrieval. The slides also allow "ASR optimisations as extensions".
