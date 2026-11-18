@@ -5,7 +5,9 @@ Legend: [x] done, [ ] open. "You" = the owner. Commands run from the course chec
 ## 0. What is finished (do not redo)
 - [x] ASR: four kernels correct (tests, sanitizers, exact transcript), ablations, same-job comparison with PyTorch (2.45x slower), profile, GEMM naive/ours/cuBLAS, hand-in outputs (`docs/outputs/`).
 - [x] RAG: baseline retrieval (practice 350, dev 125), depth sweep, answer quality vs k (practice n=28, dev n=27, pooled n=55), mechanism, adaptive k (negative, held-out checked), end-to-end cost.
-- [x] Drafts: report (`docs/report/latex/report.tex`, compiles, main body ends on page 5), video script (`docs/video/VIDEO_SCRIPT.md`), notes (`docs/report/report-video-notes.md`), 16 guide answers (`docs/laptop/TASK_ANSWERS.md`).
+- [x] Report: `submission/report/report.tex` + `report.pdf` (course template, format checker PASS, 6-page body; audited 2026-11-18). Alternative laptop draft `docs/report/latex/` is a cross-check only.
+- [x] Video script: `docs/report/VIDEO_SCRIPT.md` (9:45, narration word-counted, demo option A with `rag/extensions/demo_query.py`). Alternative laptop script `docs/video/` is a cross-check only.
+- [x] Notes (`docs/report/report-video-notes.md`), 16 guide answers (`docs/laptop/TASK_ANSWERS.md`), audit (`docs/AUDIT.md`).
 - [x] ELM budget used: about 360 calls. No more calls are needed.
 
 ## 1. Understand everything (your job; do first, it protects the grade)
@@ -15,16 +17,16 @@ Legend: [x] done, [ ] open. "You" = the owner. Commands run from the course chec
 - [ ] Be able to explain: online softmax (m, l, corr); why padding avoids bank conflicts; why tiling cuts loads by the tile width; why recall rises but judged quality is flat (coverage vs dilution); why adaptive k fails (weak gate, low oracle ceiling).
 
 ## 2. Report (6-page main body; template in `report/latex_template`)
-- [ ] Open `docs/report/latex/report.tex` (see its README to build). Read it as a reviewer: is every claim supported by a table? Edit wording in your own voice.
+- [ ] Open `submission/report/report.tex` (build: `pdflatex report.tex; bibtex report; pdflatex report.tex; pdflatex report.tex`, or upload the folder to Overleaf). Read it as a reviewer: is every claim supported by a table? Edit wording in your own voice; re-run the format checker after any edit (References start about 40% down page 6, so about half a page of text can still be added).
 - [ ] Fill the last page: Group ID, names, UUNs; keep the AI declaration (it says an AI assistant wrote the kernels and scripts and helped draft text; adjust if your use differs).
-- [ ] Decide whether to add one figure (e.g. judge score vs k with intervals, or time breakdown). Optional; tables already carry the evidence. The main body has about one page of room.
-- [ ] Run the format checker (needs PyMuPDF): see `docs/report/latex/README.md`. Fix any WARN/FAIL.
+- [ ] Decide whether to add one figure (e.g. judge score vs k with intervals, or time breakdown). Optional; tables already carry the evidence. The main body has about half a page of room.
+- [ ] Run the format checker after your edits: `python <course-root>/report/format_checker/check_report_format.py submission/report/report.pdf` (needs `pip install PyMuPDF`). Last result: PASS on 2026-11-18, after the audit fixes.
 - [ ] Check anonymity: no names, UUN, repo link, personal paths in the body or appendix; PDF properties have no author; file name `report.pdf`.
 - [ ] Reconcile with your teammate's version (compare numbers, pick the better sections; keep one source of truth).
 
-## 3. Video (at most 10 minutes; script in `docs/video/VIDEO_SCRIPT.md`)
-- [ ] Decide the demo setup: Option A (recommended): ASR demo on the cluster GPU, answer demo on the laptop from the cached transcript, cut stated in the video. Option B (download the ASR model to the laptop, about 4.5 GB, minutes per query) needs your explicit yes. Option C (ELM key on the cluster) is not recommended.
-- [ ] Rehearse the demo commands once (cluster: `make test3`, `./run.sh --cuda none`, `./run.sh`; laptop: `generate_from_transcripts.py` with a new output name, `docs/video/demo_show.py`, `retrieval_sweep.py`).
+## 3. Video (at most 10 minutes; script in `docs/report/VIDEO_SCRIPT.md`)
+- [x] Demo setup: option A, two stages with `rag/extensions/demo_query.py` (ASR with our kernels on the cluster GPU, then retrieval and answer on the laptop); commands in the video script, section 3.
+- [ ] Rehearse the demo commands once (video script section 3). `demo_query.py` has only been tested on stand-in modules, so the first real run is the rehearsal: pick the query, run `asr` on a GPU node, copy the JSON, run `answer --k 5` and `--k adaptive` (2 ELM calls).
 - [ ] Record (OBS), cut loading waits and say so, last two minutes = Question 1 and Question 2, export `video.mp4`, check playback with sound, check no name/path/notification is visible.
 
 ## 4. Hand-in package
@@ -38,7 +40,7 @@ Legend: [x] done, [ ] open. "You" = the owner. Commands run from the course chec
 - [ ] Individual review (30% of the coursework): when the anonymised report you must review arrives, write Summary (150 words), Strengths (at least 3, 300 words), Weaknesses (at least 3, 300 words), Detailed Comments (300 words). Not started.
 
 ## 5. GitHub and housekeeping
-- [ ] Push the laptop commits (needs your GitHub login; the assistant has no credentials): `cd ~/MLS && git switch rufiz && git push` (use a personal access token as the password, or your credential helper).
+- [ ] Keep the laptop clone in step with GitHub: `cd ~/MLS && git switch rufiz && git pull origin rufiz`. If you commit on the laptop, push with `git pull --rebase origin rufiz && git push origin rufiz` (personal access token as the password).
 - [ ] Teammate comparison: send the teammate's repo URL; compare kernels, ablations and RAG results; merge the best of both.
 - [ ] Keep the repository free of keys, data, weights and caches (`.gitignore`); `docs/` is not part of the submission zip.
 - [ ] After the final submission: rotate the ELM key if you want to be safe; delete the cluster scratch files (`~/demo_asr`, `~/mls-rag-assets`, `~/.cache/huggingface` if not needed) and the laptop `rag/results/` if you do not need them.

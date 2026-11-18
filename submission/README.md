@@ -44,4 +44,4 @@ Dependencies: the course environments (`hw1-asr/setup_env.sh`, `rag/requirements
 ## Outputs and log
 - `outputs/handin_make_test_and_profile.txt`: `make test` and `./run.sh --profile` from one job on one node (RTX 2080 Ti).
 - `outputs/pytorch_vs_ours_same_job.txt`: PyTorch-only vs our kernels in one job.
-- `EXPERIMENT_LOG.md`: every experiment, command, number and interpretation (entries E01-E18, K01-K09).
+- `EXPERIMENT_LOG.md`: every experiment, command, number and interpretation (entries E01-E19, K01-K09).

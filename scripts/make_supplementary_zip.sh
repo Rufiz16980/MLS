@@ -12,7 +12,7 @@ cp "$REPO"/docs/outputs/*.txt "$STAGE/outputs/"
 cp "$REPO/submission/README.md" "$STAGE/README.md"
 cp "$REPO/docs/report/experiment-log.md" "$STAGE/EXPERIMENT_LOG.md"
 find "$STAGE" -name __pycache__ -prune -exec rm -rf {} +
-if grep -r -l -i -E "s3022898|rufiz|/home/[a-z]|gmail" "$STAGE"; then echo "personal data found, not zipping" >&2; exit 1; fi
+if grep -r -l -i -E "s[0-9]{7}|rufiz|/home/[a-z]|@gmail|@ed\.ac\.uk" "$STAGE"; then echo "personal data found, not zipping" >&2; exit 1; fi
 mkdir -p "$OUT"; rm -f "$OUT/supplementary_code.zip"
 (cd "$(dirname "$STAGE")" && zip -q -r -X "$OUT/supplementary_code.zip" supplementary_code)
 unzip -l "$OUT/supplementary_code.zip" | tail -n +1

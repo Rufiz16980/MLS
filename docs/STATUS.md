@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-16 (supersedes all earlier status text; history is in `docs/report/experiment-log.md`)
+Last updated: 2026-11-18 (supersedes all earlier status text; history is in `docs/report/experiment-log.md`)
 
 ## Where we are
 | # | Phase | State |
@@ -11,21 +11,20 @@ Last updated: 2026-11-16 (supersedes all earlier status text; history is in `doc
 | 3 | RAG baseline and depth study | DONE. Retrieval (E07-E11, E14), answer quality vs k on practice n=28 (E15) and dev n=27 (E19), pooled n=55: flat in k; mechanism (E16). |
 | 4 | Our RAG change | DONE. Adaptive k: negative result, held-out dev check (E17, E19). |
 | 5 | End-to-end cost | DONE (derived, E18). |
-| 6 | Report | DRAFT COMPLETE: `docs/report/latex/report.tex` (compiles; main body ends on page 5). Needs your read-through, final page, format check. |
-| 7 | Video | SCRIPT COMPLETE: `docs/video/VIDEO_SCRIPT.md` with demo commands. Needs recording. |
-| 8 | Hand-in package | Zip builder ready (`scripts/make_supplementary_zip.sh`); not yet built or checked. |
+| 6 | Report | COMPLETE: `submission/report/report.tex` + PDF (format checker PASS, 6-page body, audited 2026-11-18, see `docs/AUDIT.md`). Needs your read-through, the final page (group ID, names, UUNs) and your AI-declaration wording. |
+| 7 | Video | SCRIPT COMPLETE: `docs/report/VIDEO_SCRIPT.md` (9:45, demo option A via `rag/extensions/demo_query.py`). Needs rehearsal and recording. |
+| 8 | Hand-in package | `supplementary_code.zip` built and checked (28 files, our files only, no personal data); rebuild with `scripts/make_supplementary_zip.sh` after any code change. |
 | 9 | Individual review | NOT STARTED (needs the assigned report). |
 
 Course announcements of 2026-11-16 are applied: one question per ASR task (four answers in report Section 4.2), "Try this" optional, long outputs may go to the appendix, video questions known.
 
 ## Next steps (see `docs/TODO.md` for the full list with commands)
 1. Owner: read and understand the four kernel answers and the report; rehearse the oral questions.
-2. Owner: decide the demo setup (A recommended), record the video, finish the report's last page, run the format checker.
+2. Owner: rehearse the demo (option A, decided), record the video, finish the report's last page, run the format checker.
 3. Build the code zip, rename files, upload on Learn. Write the individual review when the report arrives.
-4. Push to GitHub when logged in; compare with the teammate's version.
+4. Compare with the teammate's version. Everything in this repo is pushed to `rufiz` (2026-11-18).
 
 ## Open decisions
-- Video demo setup: A (ASR on the cluster GPU + answer demo from cached transcript), B (download the ASR model to the laptop, about 4.5 GB), C (ELM key on the cluster, not recommended).
 - Which figure, if any, to add to the report.
 - Create `main` on GitHub (the default branch is still `claude/project-thread-ix3sq3`; work happens on `rufiz`).
 
