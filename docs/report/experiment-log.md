@@ -850,3 +850,18 @@ python rag/extensions/rank_groups.py --csv rag/results/aq_pooled_practice_dev_su
 - 2 are unclear.
 
 **What it means.** Part of the zero floor is the judge, not retrieval or generation. Judged quality is therefore noisier than the bootstrap intervals alone suggest. A judge test-retest would turn this reading into a measurement.
+
+## E22: Judge test-retest on stored answers (laptop, 56 ELM judge calls, no generation)
+
+**Need.** E21 suggested that part of the zero floor is judge noise. Measure how often the supplied judge repeats its own score on the same stored answer.
+
+**Method.** 56 stored (query, k) answers: the 36 that scored 0 although a relevant record was in the prompt, and 20 non-zero answers drawn at random (seed 0) from the other pairs (pool of 78). Same candidates, same supplied judge and settings (temperature 0); written to fresh folders so the original results and the judge's cache were not reused; one call per pair, no retries. The per-pair table is `outputs/rag/judge_retest.csv`; `python rag/extensions/judge_retest_summary.py --csv outputs/rag/judge_retest.csv` prints the numbers below.
+
+**Result.**
+- 53 of 56 were scored. Three returned malformed JSON, as for the judge failures in E15 and E19 (`q_9bbd995c2b2ddb55` k = 5, `q_827ed2ddd2313785` k = 20, `q_cc3a5798107d54ab` k = 20), and are left out.
+- The total score is identical in 44 of 53 (83%); correctness 48/53, grounding 46/53, completeness 45/53. Mean absolute change 0.049.
+- Stored zeros (n = 33): 29 stay 0; 4 rise (`q_a02dccd4...` k = 1 to 0.58, the video demo query; 0.25; 0.33; 0.42).
+- Non-zero answers (n = 20): 15 identical, mean 0.500 to 0.475; the largest change is 0.58 to 0 (`q_aacc140e...` k = 1).
+
+**What it means.** The judge is not deterministic at temperature 0, but most scores reproduce. Zeros rise because they cannot fall, so the 0.048 rise is partly regression towards the mean. The noise is already part of the per-query scores from which the intervals are computed. It does not change the pooled means in the report; the generator's own variability remains unmeasured.
+
