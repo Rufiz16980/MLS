@@ -3,7 +3,7 @@
 Writes the same cache format evaluate_rag.py uses ({"query_id", "transcript"}) plus "asr_ms"
 (per-query ASR time, model loading excluded). Resumable: queries already in the output are skipped.
 
-  cd <course repo root>   # after scripts/sync_overlay.sh and install_assets.py
+  cd <course repo root>   # after copying our files into the course checkout and install_assets.py
   ASR_CUDA=none python rag/extensions/transcribe_split.py --split all
 Output: rag/.cache/<split>_transcripts.jsonl (git-ignored). Use ASR_CUDA=all for our own kernels
 (write to a different --out-dir so the PyTorch and our-kernel transcripts are never mixed).

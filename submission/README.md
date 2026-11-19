@@ -31,12 +31,15 @@ sbatch ablation/ablate.sbatch --stage sweep   # kernel ablations; stages: check 
 | `run_answer_quality.sh` | generate + judge for k in {1, 5, 20} on the first N queries |
 | `answer_quality_summary.py` | paired comparison across k with bootstrap 95% CIs; `--split practice dev --bootstrap 5000 --csv` gives the pooled n = 55 numbers of the report and a per-query CSV |
 | `adaptive_k.py` | adaptive depth (k = 1 when the top-2 score margin is large, else 20): tuned on practice, checked on dev, replayed on judged answers (no API calls) |
+| `rank_groups.py` | post hoc analyses of the judged answers from the per-query CSV: score differences by the rank of the first relevant record, zero scores with a relevant record in the prompt, power, and replays of the gate and oracle with k = 20 or k = 5 as the high arm (no API calls) |
 | `demo_query.py` | two-stage demo of one spoken query: `asr` on the GPU with our kernels, then `answer` on a machine with the ELM key (retrieval, one generation call, per-stage times) |
 
 ```bash
 python rag/extensions/transcribe_split.py --split practice        # GPU
 python rag/extensions/retrieval_sweep.py --split practice --transcripts rag/.cache/practice_transcripts.jsonl
-bash rag/extensions/run_answer_quality.sh 30 practice                # needs the ELM key in rag/.env
+EXCLUDE="q_d442a6395dbca951 q_4e29b0ce6fa96d1a" bash rag/extensions/run_answer_quality.sh 30 practice   # needs the ELM key in rag/.env
+EXCLUDE="q_7f3179f293749f08" bash rag/extensions/run_answer_quality.sh 28 dev
+python rag/extensions/rank_groups.py --csv outputs/rag/aq_pooled_practice_dev_summary.csv --adaptive outputs/rag/adaptive_k.json
 python rag/extensions/adaptive_k.py
 ```
 Dependencies: the course environments (`hw1-asr/setup_env.sh`, `rag/requirements.txt`); numpy only beyond them.
@@ -44,5 +47,5 @@ Dependencies: the course environments (`hw1-asr/setup_env.sh`, `rag/requirements
 ## Outputs and log
 - `outputs/handin_make_test_and_profile.txt`: `make test` and `./run.sh --profile` from one job on one node (RTX 2080 Ti).
 - `outputs/pytorch_vs_ours_same_job.txt`: PyTorch-only vs our kernels in one job.
-- `outputs/rag/` (if present): per-query judge scores at k = 1, 5, 20 for the 55 judged queries (`aq_pooled_practice_dev_summary.csv`, no answer or record text), the pooled summary, and the adaptive-k result (`adaptive_k.json`), so every RAG number in the report can be recomputed without ELM calls.
-- `EXPERIMENT_LOG.md`: every experiment, command, number and interpretation (entries E01-E19, K01-K09).
+- `outputs/rag/`: per-query judge scores at k = 1, 5, 20 for the 55 judged queries (`aq_pooled_practice_dev_summary.csv`, no answer or record text), the pooled summary, and the adaptive-k result (`adaptive_k.json`). With them every judged-answer and adaptive-policy number in the report can be recomputed without ELM calls (`answer_quality_summary.py`, `rank_groups.py`, `adaptive_k.py`). Retrieval metrics need the course assets and the cached transcripts (`retrieval_sweep.py`).
+- `EXPERIMENT_LOG.md`: every experiment, command, number and interpretation (entries E01-E21, K01-K09).

@@ -3,6 +3,10 @@
 Format per entry: **Need** (why), **Command**, **Output**, **What it means**. Cluster login shown as `<UUN>`.
 Reference hardware: Informatics Teaching partition, one NVIDIA GeForce RTX 2080 Ti (11 GB, sm_75), CUDA toolkit 12.8 (`/opt/cuda-12.8.0`).
 
+How to read this log. Entries were written as the runs happened. Runs that need the ELM key, or that only read cached results, were done on the laptop; GPU runs on the cluster.
+- `scripts/sync_overlay.sh` and `tools/guard` refer to helpers in our working repository that are not in the supplementary code. They only copy our files into the course checkout and check that the 55 supplied files are unchanged.
+- A PENDING note marks a follow-up as it stood at that time. Closed later: the float32 encoder check (E07, E09, E11; addendum after E16), the dev repeat of the sweep (E11), the extension to 30 queries (E15), the combined configuration and repeats (K07, K08), the cuBLAS comparison (K08), hit@k (E14 addendum), and the use of evidence in zero-score answers (E21). The remaining PENDING notes are follow-ups whose results the report does not use.
+
 ## E01: Course code and data pinned and verified
 
 **Need.** Everyone must work from the same pristine course code and data, so results are comparable and frozen files are provably untouched.
@@ -597,7 +601,7 @@ Paired difference in judge score against k = 1 (same 15 queries):
 
 **Need.** E12 shows the judge score rising little between k = 5 and k = 20. Before extending the run, look at why some queries stay at 0.
 
-**Method.** Read the saved results of E12 (transcript, rank of the first relevant record, answer, judge explanation) for the queries with score 0 at k = 1, 5 and 20. Three queries qualify. The inspection was done on the laptop from saved files and reported to us; the details below were not re-checked on our side. Three queries are illustrations, not frequencies.
+**Method.** Read the saved results of E12 (transcript, rank of the first relevant record, answer, judge explanation) for the queries with score 0 at k = 1, 5 and 20. Three queries qualify. The inspection was done on the laptop from the saved files. Three queries are illustrations, not frequencies (E21 reads all of them).
 
 | query type | what happened |
 | --- | --- |
@@ -614,7 +618,7 @@ Paired difference in judge score against k = 1 (same 15 queries):
 
 **Need.** Recall@k mixes "found at least one relevant record" with "found all of them". hit@k (the share of queries with at least one relevant record in the top k) separates retrieval coverage from the rest of the pipeline, over all queries rather than the 15 of E12.
 
-**Method.** Computed on the laptop from the cached transcripts, by a one-off script reported to us; the numbers below are as reported and PENDING an independent re-run with `retrieval_sweep.py`, which now prints hit@k with bootstrap intervals (`python rag/extensions/retrieval_sweep.py --split practice --transcripts rag/.cache/practice_transcripts.jsonl`, same for dev). Consistency checks we could do ourselves: hit@k is above Recall@k at every k (E09, E11), and 1 - hit@100 = 0.12 is a plausible gap to Recall@100 = 0.77 / 0.72.
+**Method.** First computed on the laptop from the cached transcripts with a one-off script; confirmed on 2026-11-19 with `retrieval_sweep.py`, which prints hit@k with bootstrap intervals (`python rag/extensions/retrieval_sweep.py --split practice --transcripts rag/.cache/practice_transcripts.jsonl`, same for dev; addendum below).
 
 | k | hit@k practice | hit@k dev |
 | --- | --- | --- |
@@ -629,9 +633,22 @@ Paired difference in judge score against k = 1 (same 15 queries):
 - Reported median rank of the first relevant record: 2, the same on both splits.
 - Together with E13: some of the zero answer scores are retrieval misses (this 12%), the rest come from the generation or judge side.
 
+**Addendum 2026-11-19: re-run with `retrieval_sweep.py` (laptop, no ELM calls).** Recall@k and hit@k reproduce exactly. hit@k with 95% bootstrap intervals:
+
+| k | hit@k practice (n = 350) | hit@k dev (n = 125) |
+| --- | --- | --- |
+| 1 | 0.411 (0.363-0.463) | 0.376 (0.296-0.464) |
+| 5 | 0.591 (0.540-0.643) | 0.584 (0.496-0.672) |
+| 10 | 0.651 (0.600-0.700) | 0.656 (0.568-0.736) |
+| 20 | 0.737 (0.691-0.783) | 0.768 (0.696-0.840) |
+| 50 | 0.820 (0.780-0.857) | 0.840 (0.776-0.904) |
+| 100 | 0.880 (0.843-0.911) | 0.880 (0.824-0.936) |
+
+Median retrieval time in this run was 0.65-0.77 ms (0.44-0.46 ms in E09 on a less busy machine), so the report says "under 1 ms".
+
 ## E15: Answer quality versus retrieval depth, extended to 30 practice queries (n = 28 judged)
 
-**Need.** E12 (n = 15) had intervals too wide to separate the depths. Add queries 16-30 at the same three depths with identical settings (same transcripts, prompt, models, temperature, judge rubric, query order); the first 15 answers and judge scores are reused, so the comparison stays paired. Run on the laptop and reported to us.
+**Need.** E12 (n = 15) had intervals too wide to separate the depths. Add queries 16-30 at the same three depths with identical settings (same transcripts, prompt, models, temperature, judge rubric, query order); the first 15 answers and judge scores are reused, so the comparison stays paired. Run on the laptop.
 
 ```bash
 bash rag/extensions/run_answer_quality.sh 30     # skips the 15 queries already done; about 90 more ELM calls
@@ -645,7 +662,7 @@ Exclusions: the course judge returned unparseable output for 2 of the 30 queries
 | 5 | 0.268 (0.155-0.387) | 0.472 | 1249 | 3782 |
 | 20 | 0.292 (0.173-0.411) | 0.639 | 4730 | 4303 |
 
-Paired differences against k = 1: k = 5 +0.018 (7 queries worse), k = 20 +0.042; neither interval excludes zero. Batch check: the new 13 judged queries go the other way from the first 15 (0.333 at k = 1, 0.212 at k = 5 and 20), so the E12 trend came from the first batch.
+Paired differences against k = 1: k = 5 +0.018 (7 queries worse), k = 20 +0.042; neither interval excludes zero. (The report quotes the intervals printed by the shipped `answer_quality_summary.py` with seed 0, for example 0.134-0.381 at k = 1; they differ from this table in the third decimal.) Batch check: the new 13 judged queries go the other way from the first 15 (0.333 at k = 1, 0.212 at k = 5 and 20), so the E12 trend came from the first batch.
 
 **What it means.**
 - Under this judge, judged answer quality is flat in k: k = 1 or 5 gives about the same score as k = 20, while the prompt grows 15x from k = 1 to 20 and median generation time 2.4x. Retrieval coverage (Recall@k, hit@k in E14) rises strongly with k, but the judged quality does not follow.
@@ -656,7 +673,7 @@ Paired differences against k = 1: k = 5 +0.018 (7 queries worse), k = 20 +0.042;
 
 ## E16: Why E15 is flat, judge score by rank of the first relevant record (no ELM calls)
 
-**Need.** E15 shows flat judged quality across k although coverage rises. Split the 28 judged queries by where retrieval first finds a relevant record, and follow each group across depths. Computed on the laptop from the saved E15 results and reported to us. Our check: the group means, weighted by group size, reproduce the E15 means exactly (0.250, 0.268, 0.292).
+**Need.** E15 shows flat judged quality across k although coverage rises. Split the 28 judged queries by where retrieval first finds a relevant record, and follow each group across depths. Computed on the laptop from the saved E15 results. Check: the group means, weighted by group size, reproduce the E15 means exactly (0.250, 0.268, 0.292).
 
 | first relevant record at | n | judge score at k = 1 / 5 / 20 |
 | --- | --- | --- |
@@ -791,4 +808,45 @@ Retrieval-side numbers from `adaptive_k.py` for the same policy: dev Recall 0.50
 - Adaptive k is now tested cleanly: on held-out dev answers it is 0.049 below fixed k = 5 (interval -0.123 to +0.015) while using 3.3x the prompt tokens (3367 vs 1022). Even the oracle that knows whether the top record is relevant is 0.015 below k = 5. So the confidence gate has no benefit to deliver in this setting;
   the negative result of E17 holds on a split not used for tuning. (E17's note "not run, deliberately: a dev confirmation" is superseded by this entry.)
 - Recall@k on these dev queries (0.27, 0.37, 0.50) rises with depth much as on the whole dev split (0.21, 0.38, 0.58), but judged quality does not follow, consistent with the coverage-versus-dilution mechanism (E16) and the judge scoring only against the labelled gold evidence (E13).
-**Limits.** n = 27 dev + 28 practice, one judge repeat (temperature 0, so repeats would add nothing), one judge model, one generator run (temperature 0.1); 3 queries dropped for unparsable judge replies (5%; could bias towards queries with long or unusual answers); generation latency depends on shared ELM load.
+**Limits.** n = 27 dev + 28 practice, one judge run per answer (temperature 0; run-to-run agreement not measured, see E21), one judge model, one generator run (temperature 0.1); 3 queries dropped for unparsable judge replies (5%; could bias towards queries with long or unusual answers); generation latency depends on shared ELM load.
+
+## E20: Post hoc analyses of the judged answers (no ELM calls; response to an independent marking, 2026-11-19)
+
+**Need.** An independent marking found that the report stated the coverage-versus-dilution mechanism as fact, blamed the low oracle ceiling on retrieval misses alone and did not say how small an effect the study can detect. Quantify all three from the shipped per-query file.
+
+```bash
+python rag/extensions/rank_groups.py --csv rag/results/aq_pooled_practice_dev_summary.csv --adaptive rag/results/adaptive_k.json
+```
+
+| pooled, paired bootstrap (5000, seed 0) | n | k5-k1 | k20-k1 | k20-k5 |
+| --- | --- | --- | --- | --- |
+| first relevant at rank 1 | 23 | -0.062 (-0.217, +0.098) | -0.091 (-0.239, +0.069) | -0.029 (-0.152, +0.098) |
+| first relevant at ranks 2-20 | 19 | +0.149 (+0.035, +0.263) | +0.123 (-0.031, +0.289) | -0.026 (-0.171, +0.123) |
+| dev only, ranks 2-20 | 7 | +0.250 (+0.071, +0.429) | +0.071 (-0.155, +0.310) | -0.179 (-0.298, -0.060) |
+
+- The k5-k1 effect differs between the two groups: +0.211 (+0.024, +0.399).
+- Answers scoring 0 although a relevant record was in the prompt: 6 of 23 at k = 1, 11 of 34 at k = 5 and 19 of 42 at k = 20 (26%, 32%, 45%). 18 queries score 0 at every k; 12 of them have no relevant record in the top 20.
+- Power: paired SDs 0.27-0.34, 95% half-widths 0.072-0.089, 80%-power minimum detectable effect 0.10-0.13.
+- Replays against fixed k = 5, on the 55 judged queries:
+  - The protocol gate (k 1 or 20): -0.020 (-0.097, +0.053) at 2.88x the tokens.
+  - The same gate with k 1 or 5: -0.018 (-0.068, +0.023) at 0.80x the tokens.
+  - Oracle with k 1 or 5: +0.026 (-0.042, +0.094) at 0.70x the tokens.
+  - On practice alone, the split the protocol used, the gate replays better with k = 20 (+0.009) than with k = 5 (-0.051). So the frozen choice of k = 20 was consistent with the protocol. The k = 5 variant is exploratory only, because choosing it from dev would tune on the test split.
+
+**What it means.** The coverage half of the mechanism is significant (pooled and on held-out dev). The dilution half has the right sign on both splits but is not significant. The report now says so, labels the grouping as post hoc, and gives the minimum detectable effect.
+
+## E21: Reading the zero-score answers that had the evidence in the prompt (no ELM calls)
+
+**Need.** E20 shows that 26-45% of answers score 0 although a relevant record was in the prompt. Separate judge errors from real misses.
+
+**Method.** On the laptop, read each of the 36 (query, k) pairs: the answer, the judge's explanation and sub-scores (24 distinct queries). This is one reader's coding of short texts, not a measurement.
+
+**Result.**
+- 12 are judge errors: the answer contains the fact the explanation says is missing, or the explanation contradicts the answer or its own scores. Examples:
+  - `q_a02dccd42055bf0e` (the video demo query) at k = 1: the answer says "typically ending in late April", and the judge says the late-April detail is missing. It scored 0/0/0; at k = 5 the same query scored 4/4/4.
+  - `q_827ed2ddd2313785` at k = 20: the explanation says "mostly correct and well-grounded", and all three scores are 0.
+- 8 are zeroed for extra content taken from non-gold records, although the gold fact is present.
+- 14 are real misses: a generic answer, or the labelled record is ignored.
+- 2 are unclear.
+
+**What it means.** Part of the zero floor is the judge, not retrieval or generation. Judged quality is therefore noisier than the bootstrap intervals alone suggest. A judge test-retest would turn this reading into a measurement.
