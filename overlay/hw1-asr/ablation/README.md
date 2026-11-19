@@ -5,7 +5,7 @@
 writes `ablation/results/<UTC time>/summary.md` plus `results.csv` and raw logs.
 The default build (`build/sm_XX`) and every course file stay untouched.
 
-Knobs (defaults are the handout values, except TILE = 32 and ATTN_WARPS = 16, which we submit after K07; a sweep variant named after a handout value, e.g. gemm_tile32, now equals the default):
+Knobs (defaults are the handout values, except TILE = 32 and ATTN_WARPS = 16, which we submit after K07). The handout settings are kept as named variants: `gemm_tile16`, `attn_w4`, and `handout_t16_w4` for both together; `gemm_tile32` and `attn_w16` now equal the default:
 
 | Flag | File | Default | Guide item |
 | --- | --- | --- | --- |

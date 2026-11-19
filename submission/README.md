@@ -29,7 +29,7 @@ sbatch ablation/ablate.sbatch --stage sweep   # kernel ablations; stages: check 
 | `retrieval_sweep.py` | Recall@k, hit@k, MRR/NDCG@10, retrieval latency, context size for k = 1..100 (no API calls) |
 | `generate_from_transcripts.py` | answers from cached transcripts at a given k; records prompt/completion tokens; resumable |
 | `run_answer_quality.sh` | generate + judge for k in {1, 5, 20} on the first N queries |
-| `answer_quality_summary.py` | paired comparison across k with bootstrap 95% CIs |
+| `answer_quality_summary.py` | paired comparison across k with bootstrap 95% CIs; `--split practice dev --bootstrap 5000 --csv` gives the pooled n = 55 numbers of the report and a per-query CSV |
 | `adaptive_k.py` | adaptive depth (k = 1 when the top-2 score margin is large, else 20): tuned on practice, checked on dev, replayed on judged answers (no API calls) |
 | `demo_query.py` | two-stage demo of one spoken query: `asr` on the GPU with our kernels, then `answer` on a machine with the ELM key (retrieval, one generation call, per-stage times) |
 
@@ -44,4 +44,5 @@ Dependencies: the course environments (`hw1-asr/setup_env.sh`, `rag/requirements
 ## Outputs and log
 - `outputs/handin_make_test_and_profile.txt`: `make test` and `./run.sh --profile` from one job on one node (RTX 2080 Ti).
 - `outputs/pytorch_vs_ours_same_job.txt`: PyTorch-only vs our kernels in one job.
+- `outputs/rag/` (if present): per-query judge scores at k = 1, 5, 20 for the 55 judged queries (`aq_pooled_practice_dev_summary.csv`, no answer or record text), the pooled summary, and the adaptive-k result (`adaptive_k.json`), so every RAG number in the report can be recomputed without ELM calls.
 - `EXPERIMENT_LOG.md`: every experiment, command, number and interpretation (entries E01-E19, K01-K09).

@@ -22,8 +22,9 @@ HW = Path(__file__).resolve().parent.parent          # hw1-asr/
 BASE_FLAGS = "-O3 -std=c++17 -lineinfo -diag-suppress 177"  # the Makefile's default NVCCFLAGS
 TEST = {1: "test_task1_rope", 2: "test_task2_reduce", 3: "test_task3_gemm", 4: "test_task4_attention"}
 
-# name: (task, extra nvcc flags, what it tests). Defaults: ROPE 256, REDUCE 256, TILE 16,
-# ws pad 1, coalesced W load, ATTN_WARPS 4, k pad 1, accurate maths.
+# name: (task, extra nvcc flags, what it tests). Defaults (the submitted build): ROPE 256, REDUCE 256,
+# TILE 32, ws pad 1, coalesced W load, ATTN_WARPS 16, k pad 1, accurate maths.
+# The handout settings (TILE 16, ATTN_WARPS 4) are the variants gemm_tile16, attn_w4 and handout_t16_w4.
 VARIANTS = {
     "default":          (0, "", "the submitted configuration"),
     "rope_t32":         (1, "-DASR_ROPE_THREADS=32", "T1 Try 1: block size"),
@@ -40,16 +41,19 @@ VARIANTS = {
     "rms_atomic":       (2, "-DASR_ABL_RMS_ATOMIC", "T2 Try 4: atomicAdd instead of shuffles"),
     "softmax_3pass":    (2, "-DASR_ABL_SOFTMAX_3PASS", "T2 Q3: textbook 3-read softmax"),
     "gemm_tile8":       (3, "-DASR_TILE=8", "T3 Try 1: tile size"),
+    "gemm_tile16":      (3, "-DASR_TILE=16", "T3 Try 1: handout value"),
     "gemm_tile32":      (3, "-DASR_TILE=32", "T3 Try 1"),
     "gemm_nopad":       (3, "-DASR_WS_PAD=0", "T3 Try 2: shared-memory bank conflicts"),
     "gemm_wstrided":    (3, "-DASR_ABL_W_STRIDED", "T3 Try 3: uncoalesced W load"),
     "gemm_tile32_nopad":(3, "-DASR_TILE=32 -DASR_WS_PAD=0", "T3 Try 1+2 interaction"),
     "attn_w1":          (4, "-DASR_ATTN_WARPS=1", "T4 Try 1: queries per block"),
     "attn_w2":          (4, "-DASR_ATTN_WARPS=2", "T4 Try 1"),
+    "attn_w4":          (4, "-DASR_ATTN_WARPS=4", "T4 Try 1: handout value"),
     "attn_w8":          (4, "-DASR_ATTN_WARPS=8", "T4 Try 1"),
     "attn_w16":         (4, "-DASR_ATTN_WARPS=16", "T4 Try 1"),
     "attn_nopad":       (4, "-DASR_K_PAD=0", "T4 Try 2: bank conflicts in k_tile"),
     "best_t32_w16":     (0, "-DASR_TILE=32 -DASR_ATTN_WARPS=16", "combined: GEMM tile 32 + 16 attention warps"),
+    "handout_t16_w4":   (0, "-DASR_TILE=16 -DASR_ATTN_WARPS=4", "handout settings: the baseline of the tile/warps comparison (K07)"),
 }
 RACE = {  # correctness ablations: expected to break; only run with --stage race
     "race_no_final_sync":  (2, "-DASR_ABL_NO_FINAL_SYNC", "T2 Try 3"),
@@ -62,12 +66,14 @@ E2E = [
     ("task1-2", "default", "task1,task2", False),
     ("task1-3", "default", "task1,task2,task3", True),
     ("all_default", "default", "all", True),
+    ("all_handout_t16_w4", "handout_t16_w4", "all", True),
     ("all_tile8", "gemm_tile8", "all", False),
     ("all_tile32", "gemm_tile32", "all", False),
     ("all_attn_w8", "attn_w8", "all", False),
 ]
 # Extra full-model runs for --stage best (the combination of the best single changes, plus its parts)
 E2E_BEST = [
+    ("all_handout_t16_w4", "handout_t16_w4", "all", False),
     ("all_default_repeat", "default", "all", False),
     ("all_attn_w16", "attn_w16", "all", False),
     ("all_tile32_again", "gemm_tile32", "all", False),
