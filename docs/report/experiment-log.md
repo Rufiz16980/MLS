@@ -761,6 +761,7 @@ paired vs k = 1: k = 5 +0.037 (-0.049 to +0.120), 7 better / 5 worse / 15 tied; 
 ```
 Pooled over practice (28) and dev (27), n = 55 judged at every depth (paired bootstrap, 5,000 resamples): mean judge score k = 1: 0.267 (0.182 to 0.359); k = 5: 0.294 (0.212 to 0.379); k = 20: 0.273 (0.185 to 0.367).
 Differences: k5 - k1 = +0.027 (-0.053 to +0.111); k20 - k1 = +0.006 (-0.077 to +0.095); k20 - k5 = -0.021 (-0.091 to +0.050). Zero-score answers: 30, 26 and 31 of 55.
+(2026-11-19: the shipped `answer_quality_summary.py --split practice dev --bootstrap 5000` reproduces n, means, differences and zero counts exactly; its seed-0 intervals are k = 1 0.180-0.359, k = 5 0.212-0.382, k = 20 0.183-0.368 and differences -0.055 to +0.108, -0.083 to +0.097, -0.092 to +0.052. The report quotes these, so the submitted code reproduces every number; per-query scores in `docs/outputs/rag/`.)
 
 Replay of the frozen adaptive policy (k = 1 if score margin >= 0.0122 else 20) on the dev answers, n = 27, no new calls:
 | policy | judge score (95% CI) | diff vs fixed k = 5 (95% CI) | better / worse / tied | mean k | prompt tokens |
