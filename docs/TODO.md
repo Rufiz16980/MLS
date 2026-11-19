@@ -18,7 +18,7 @@ Legend: [x] done, [ ] open. "You" = the owner. Commands run from the course chec
 
 ## 2. Report (6-page main body; template in `report/latex_template`)
 - [ ] Open `submission/report/report.tex` (build: `pdflatex report.tex; bibtex report; pdflatex report.tex; pdflatex report.tex`, or upload the folder to Overleaf). Read it as a reviewer: is every claim supported by a table? Edit wording in your own voice; re-run the format checker after any edit (References start about 40% down page 6, so about half a page of text can still be added).
-- [ ] Fill the last page: Group ID, names, UUNs; keep the AI declaration (it says an AI assistant wrote the kernels and scripts and helped draft text; adjust if your use differs).
+- [ ] Fill the last page: Group ID, names, UUNs; keep the AI declaration (it says parts of the coursework were done with the help of an AI assistant and names those parts: kernels, scripts, analyses and log, report, video script and code README; adjust if your use differs).
 - [ ] Decide whether to add one figure (e.g. judge score vs k with intervals, or time breakdown). Optional; tables already carry the evidence. The main body has about half a page of room.
 - [ ] Run the format checker after your edits: `python <course-root>/report/format_checker/check_report_format.py submission/report/report.pdf` (needs `pip install PyMuPDF`). Last result: PASS on 2026-11-18, after the audit fixes.
 - [ ] Check anonymity: no names, UUN, repo link, personal paths in the body or appendix; PDF properties have no author; file name `report.pdf`.
