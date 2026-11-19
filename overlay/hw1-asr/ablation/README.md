@@ -15,11 +15,11 @@ Knobs (defaults are the handout values, except TILE = 32 and ATTN_WARPS = 16, wh
 | `ASR_ABL_RMS_ATOMIC` | task2_reduce.cu | off | Task 2 Try 4 |
 | `ASR_ABL_SOFTMAX_3PASS` | task2_reduce.cu | off | Task 2 Question 3 |
 | `ASR_ABL_NO_FINAL_SYNC` | task2_reduce.cuh | off | Task 2 Try 3 (race, expected to break) |
-| `ASR_TILE` | task3_gemm.cu | 16 | Task 3 Try 1 |
+| `ASR_TILE` | task3_gemm.cu | 32 (handout 16) | Task 3 Try 1 |
 | `ASR_WS_PAD` | task3_gemm.cu | 1 | Task 3 Try 2 |
 | `ASR_ABL_W_STRIDED` | task3_gemm.cu | off | Task 3 Try 3 |
 | `ASR_ABL_NO_SECOND_SYNC` | task3_gemm.cu | off | Task 3 Try 4 (race, expected to break) |
-| `ASR_ATTN_WARPS` | task4_attention.cu | 4 | Task 4 Try 1 |
+| `ASR_ATTN_WARPS` | task4_attention.cu | 16 (handout 4) | Task 4 Try 1 |
 | `ASR_K_PAD` | task4_attention.cu | 1 | Task 4 Try 2 |
 
 Stages: `check` (make test, compute-sanitizer memcheck and racecheck on the small cases,
