@@ -34,7 +34,7 @@ This audit checks every course requirement against the report, video script and 
 | Interpretation, mechanism, limitations, alternative explanations | met | Section 4.4 (coverage vs dilution, adaptive k and oracle bound) and Section 5. |
 | Negative results explained accurately | met | Ours is 2.45x slower than PyTorch, with the reason; adaptive k does not beat fixed k, with the reason; a withdrawn 15-query claim. |
 | Supplied vs own contributions distinguished | met | Section 2, "Supplied" and "Ours" paragraphs. |
-| AI declaration and student information on one final page | needs you | Page 8 has the AI declaration, but the group fields are still placeholders (`XXX`, `John Doe`, `sXXXXXXX`). |
+| AI declaration and student information on one final page | met (2026-11-19) | Page 8: AI declaration and group information for both members. The filled page comes from a git-ignored `group_info.tex`; the repo copy keeps the placeholders. |
 | Anonymous title, no names/UUN/repo link in body or appendix, no PDF author metadata | met | The PDF title and author fields are empty, and a grep of the source finds no personal data and no repo link. |
 
 ## 2. Rubric (group report, 100 marks)
