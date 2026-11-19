@@ -121,7 +121,7 @@ cuBLAS (NVIDIA library) & 13363 & 6$\times$ faster than ours\\
 \end{axis}
 \end{tikzpicture}
 \end{center}
-\centering Practice split, 350 questions. Searching all 24{,}000 records takes about 0.5\,ms whatever $k$ is.\\
+\centering Practice split, 350 questions. Searching all 24{,}000 records takes under 1\,ms whatever $k$ is.\\
 But 12\% of questions never reach a right record, even at $k=100$.
 \end{frame}
 
@@ -148,7 +148,7 @@ $k$ & prompt tokens & seconds\\
 20 & 4544 & 6.4\\
 \bottomrule
 \end{tabular}\\[2mm]
-Prompt grows $15\times$.\\ Score differences: at most 0.03.\\ We cannot see a difference smaller than about 0.09.
+Prompt grows $15\times$.\\ Score differences: at most 0.03.\\ We would likely miss differences below about 0.1.
 \end{columns}
 \end{frame}
 
@@ -166,11 +166,11 @@ not in top 20 & 5 & 0 & 0 & 0\\
 \bottomrule
 \end{tabular}\\[4mm]
 \begin{itemize}
-\item Right record already first: extra records only distract.
-\item Right record lower: extra records help.
+\item Right record already first: extra records seem to distract (not significant).
+\item Right record lower: extra records help (significant when both splits are pooled).
 \item Not found at all: no $k$ helps.
 \end{itemize}
-{\small Small groups, made after seeing the data. On held-out dev, rank-1 questions again lose with more records.}
+{\small Small groups, made after seeing the data: an explanation, not proof.}
 \end{frame}
 
 % ---- 11 Adaptive k
@@ -187,7 +187,7 @@ perfect gate (oracle) & 0.306 & 2419\\
 \bottomrule
 \end{tabular}\\[4mm]
 \begin{itemize}
-\item The gate is weak: about a third of its ``confident'' questions have the wrong top record.
+\item The gate is weak: 27--34\% of its ``confident'' questions have the wrong top record.
 \item Even a perfect gate gains little: a quarter of questions have no right record in the top 20.
 \end{itemize}
 \end{frame}
@@ -209,7 +209,7 @@ perfect gate (oracle) & 0.306 & 2419\\
 \item Course tests: every kernel against a CPU / cuBLAS answer, including edge cases.
 \item Sanitizer: no memory errors, no race conditions.
 \item Full model: the transcript must be exactly right.
-\item Repeated runs on different nodes: our time varies under 1\%.
+\item Repeated runs on different nodes: our time agrees within about 1\%.
 \end{itemize}
 \textbf{Example 1:} fast-math looked like free speed, but a RoPE test failed: rejected.\\
 \textbf{Example 2:} after 15 questions $k=20$ looked better; with 13 more it vanished: claim withdrawn.
