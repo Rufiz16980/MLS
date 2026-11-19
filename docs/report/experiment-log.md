@@ -681,6 +681,8 @@ not in top 20   8   0.052  0.062  0.062
 ```
 - The rank-1 pattern replicates on queries that played no part in forming the groups: they lose with depth. Queries with evidence at ranks 2-20 (n = 7) gain from k = 1 to k = 5 (0.131 to 0.381) but fall back at k = 20 (0.202), so the dev split supports dilution for rank-1 queries and coverage up to k = 5, not the practice gain at k = 20. Groups of 3 to 12 queries: indicative only.
 
+**Addendum 2026-11-19: encoder precision check (closes the float16 PENDING notes in E07, E09 and E11).** The supplied enc_a loads in float16 on CPU. Encoding the same transcripts in float32 gives identical Recall@1/5/20/100 to four decimals on both splits (practice 0.2292 / 0.4213 / 0.5785 / 0.7699; dev 0.2087 / 0.3795 / 0.5795 / 0.7244) and the same top-1 record for 100% of queries. Run on the laptop, no ELM calls.
+
 ## E17: Adaptive retrieval depth (our RAG change; no ELM calls)
 
 **Need.** E16 showed that extra records hurt when the rank-1 record is already relevant and help when it is not. So: choose k per query from the retriever's own confidence, k = 1 when confident, else k = 20. Script `rag/extensions/adaptive_k.py`.
