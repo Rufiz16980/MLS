@@ -671,6 +671,16 @@ Paired differences against k = 1: k = 5 +0.018 (7 queries worse), k = 20 +0.042;
 - Suggests a testable follow-up: a reranker or an adaptive k (small k when the top record is a confident match) could keep the coverage gain without the dilution loss.
 - Limits: groups are small (11, 8, 4, 5) and were defined after seeing the data; this is an explanation to test, not a measured effect.
 
+**Addendum 2026-11-19: the same grouping on the 27 held-out dev queries** (from `docs/outputs/rag/`: per-query scores in `aq_pooled_practice_dev_summary.csv`, first relevant rank in `adaptive_k.json`; no ELM calls). Practice reproduces the table above exactly.
+```text
+dev            n    k=1    k=5    k=20
+rank 1         12   0.528  0.458  0.410
+ranks 2-5       3   0.306  0.611  0.333
+ranks 6-20      4   0.000  0.208  0.104
+not in top 20   8   0.052  0.062  0.062
+```
+- The rank-1 pattern replicates on queries that played no part in forming the groups: they lose with depth. Queries with evidence at ranks 2-20 (n = 7) gain from k = 1 to k = 5 (0.131 to 0.381) but fall back at k = 20 (0.202), so the dev split supports dilution for rank-1 queries and coverage up to k = 5, not the practice gain at k = 20. Groups of 3 to 12 queries: indicative only.
+
 ## E17: Adaptive retrieval depth (our RAG change; no ELM calls)
 
 **Need.** E16 showed that extra records hurt when the rank-1 record is already relevant and help when it is not. So: choose k per query from the retriever's own confidence, k = 1 when confident, else k = 20. Script `rag/extensions/adaptive_k.py`.

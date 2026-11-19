@@ -87,7 +87,7 @@ All four kernels pass every course test, both sanitizers report zero errors, and
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lr@{\hspace{1.5em}}lr}
 \toprule
-\multicolumn{2}{c}{Same job and node} & \multicolumn{2}{c}{Incremental (one job)} \\
+\multicolumn{2}{c}{Same job, node A} & \multicolumn{2}{c}{Incremental, node B (handout settings)} \\
 \midrule
 PyTorch only & 1096.2 $\pm$ 1.8 & PyTorch only & 806.3 \\
 Ours, submitted (tile 32, 16 warps) & 2698.8 $\pm$ 7.9 & + RoPE (Task 1) & 727.1 \\
@@ -99,7 +99,7 @@ Ours, 16 warps only$^\dagger$ & 3148.9 $\pm$ 6.9 & & \\
 \bottomrule
 \end{tabular}}
 \end{center}
-\footnotesize{$^\dagger$ One job on a third node; our time differs by under 1\% between nodes (2698.8, 2711.3 and 2728.1\,ms for the submitted settings on three nodes).}
+\footnotesize{$^\dagger$ One job on node C; our time differs by under 1\% between nodes (2698.8, 2711.3 and 2728.1\,ms for the submitted settings on three nodes).}
 \end{table}
 
 \textbf{Design choices that mattered.} Tile 32 alone saves 13\% end to end and 16 attention warps 4\%; together 17.2\% (3294 to 2728\,ms on one node), almost exactly the sum, because they act on different kernels. Two layout details matter more than any tuning constant: without the padding column of the weight tile the large multiplies are $1.7$--$2.3\times$ slower at tile 16 and $4.5\times$ slower at tile 32 (every lane hits the same bank), and without the $+1$ padding of the attention key tile the encoder case is $4.7\times$ slower. The textbook three-pass softmax is 27\% slower than our two-pass version on the 59{,}264-wide vocabulary row. Not every change helps: \texttt{--use\_fast\_math} fails the RoPE test on the audio encoder, whose large angles exceed the accuracy of the fast $\sin/\cos$.
@@ -170,7 +170,7 @@ Judged answer quality does not follow coverage. Pooled over both splits, the pai
 \subsection{Why the averages are flat: coverage against dilution}
 \label{sec:mechanism}
 
-Grouping the 28 judged practice queries by the rank of their first relevant record explains the flat average. Queries whose evidence is at rank 1 ($n=11$) score best at $k=1$ and lose as records are added (0.447, 0.394, 0.386 at $k=1,5,20$), consistent with extra records acting as distractors \citep{liu2024lost}. Queries whose evidence is at ranks 2--5 ($n=8$) gain (0.208, 0.250, 0.344), because depth brings the evidence in. Queries with no relevant record in the top 20 ($n=5$) score 0 at every depth. The gains and losses cancel. These groups were formed after seeing the data and are small, so this is an explanation, which the next experiment tests.
+Grouping the 28 judged practice queries by the rank of their first relevant record explains the flat average. Queries whose evidence is at rank 1 ($n=11$) score best at $k=1$ and lose as records are added (0.447, 0.394, 0.386 at $k=1,5,20$), consistent with extra records acting as distractors \citep{liu2024lost}. Queries whose evidence is at ranks 2--5 ($n=8$) gain (0.208, 0.250, 0.344), because depth brings the evidence in. Queries with no relevant record in the top 20 ($n=5$) score 0 at every depth. The gains and losses cancel. These groups were formed after seeing the practice scores and are small. On the 27 dev queries, which played no part in forming them, rank-1 queries again lose with depth (0.528, 0.458, 0.410; $n=12$) and queries with evidence at ranks 2--20 gain from $k=1$ to $k=5$ (0.131 to 0.381; $n=7$), though not further at $k=20$ (0.202). The next experiment tests whether this can be exploited.
 
 \begin{table}[t]
 \caption{Left: judge score by the rank of the first relevant record (28 judged practice queries). Right: adaptive depth on the 27 held-out dev queries, paired with fixed $k=5$ (95\% CI); the oracle gives $k=1$ exactly when the rank-1 record is relevant.}
@@ -203,7 +203,7 @@ For one spoken question at $k=5$, the stages add up to about 5.4\,s with PyTorch
 
 On the ASR side the evidence is precise: correctness is established at three levels, the cost is measured against the right baseline, and the profile shows that the only kernel worth further work is the matrix multiply. Register tiling (several outputs per thread), vectorised loads and a shape-dependent tile, small for single-row multiplies such as \texttt{lm\_head}, are the next steps. On the RAG side the answer to our question is that, in this system, retrieval depth is a cost decision, not a quality decision: we detect no difference between $k=1$, 5 and 20 under this judge (gains above about 0.11 are ruled out), and $k=1$ or 5 costs a fraction of the tokens. Our own change, adaptive depth, was tested with a protocol fixed in advance and a held-out split, and failed for a clear reason: the confidence signal mis-routes a third of its confident queries, and a quarter of queries have no relevant record in the top 20.
 
-\textbf{Limitations.} Answer quality rests on 55 judged queries; batches of about 15 queries disagree with each other by as much as any depth effect. The judge is the same model as the generator \citep{zheng2023judging}, credits only the gold records, and cannot tell whether ASR changed the question, because no reference transcripts exist for the queries. Generation latency depends on a shared service. All GPU results are from one GPU type, and the kernel settings were searched over two constants only. \textbf{What we would do next:} a reranker or query rewriting to reduce retrieval misses, the failure that no choice of depth can fix; and register tiling in the GEMM, the stage that dominates the ASR cost.
+\textbf{Limitations.} Answer quality rests on 55 judged queries, the first of each split in manifest order rather than a random sample, although their recall matches the full splits (Recall@1 0.249 vs 0.229 and 0.209; Recall@20 0.570 vs 0.579 and 0.580); batches of about 15 queries disagree with each other by as much as any depth effect. The judge is the same model as the generator \citep{zheng2023judging}, credits only the gold records, and cannot tell whether ASR changed the question, because no reference transcripts exist for the queries. Generation latency depends on a shared service. The supplied encoder loads in float16 on the CPU; we used it unchanged and did not compare with float32. All GPU results are from one GPU type, and the kernel settings were searched over two constants only. \textbf{What we would do next:} a reranker or query rewriting to reduce retrieval misses, the failure that no choice of depth can fix; and register tiling in the GEMM, the stage that dominates the ASR cost.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
