@@ -36,7 +36,7 @@ Legend: [x] done, [ ] open. "You" = the owner. Commands run from the course chec
   ```
   Result: `~/submission/supplementary_code.zip` (five kernel files, ablation harness, RAG extensions, outputs, README). Open it once and read the file list.
 - [ ] Rename files neutrally: `report.pdf`, `video.mp4`, `supplementary_code.zip`.
-- [ ] Look up the deadline, upload route and group size on Learn; both members upload the same report PDF if the group has two members.
+- [ ] Submit (deadline 20 November, time shown on Learn). The video is NOT uploaded directly to Learn (course announcement, 19 Nov): sign in to Media Hopper Create, + Create > Upload, save the video with a neutral title and display name; in the Learn assignment click in the submission text box, + > Content Market > Media Hopper Create Embed (Ultra), pick the video; attach `report.pdf` and optional `supplementary_code.zip`; Submit and save the receipt. Uploading to Media Hopper alone does not complete the submission. If the group has two members, both upload the same report PDF.
 - [ ] Individual review (30% of the coursework): when the anonymised report you must review arrives, write Summary (150 words), Strengths (at least 3, 300 words), Weaknesses (at least 3, 300 words), Detailed Comments (300 words). Not started.
 
 ## 5. GitHub and housekeeping

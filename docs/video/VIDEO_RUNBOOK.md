@@ -209,4 +209,4 @@ python rag/extensions/demo_query.py answer --from rag/results/demo_transcript.js
 1. Watch the whole file once, with sound.
 2. Check that it is at most 10:00 long, and that the last two minutes are Question 1 and Question 2, each introduced by name.
 3. Check that nothing identifying is on screen at any time: no user name, host name, home path, e-mail, notification, or `.env` file.
-4. Export it as `video.mp4` (H.264 video and AAC audio). If it is bigger than the upload limit on Learn, re-encode it with HandBrake (preset Fast 1080p30). Clear the title and author fields in the file's metadata.
+4. Export it as `video.mp4` (H.264 video and AAC audio). Clear the title and author fields in the file's metadata. Upload it to Media Hopper Create (not directly to Learn), with a neutral title and display name, and embed it in the Learn submission (see `docs/TODO.md`, section 4). If the file is too big, re-encode it with HandBrake (preset Fast 1080p30).
