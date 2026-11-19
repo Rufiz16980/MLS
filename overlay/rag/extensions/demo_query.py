@@ -65,7 +65,7 @@ def cmd_asr(args):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"query_id": item["query_id"], "split": args.split, "transcript": text,
                                "asr_ms": round(ms, 1), "asr_cuda": args.cuda}, ensure_ascii=False, indent=1))
-    print(f"-> {out}")
+    print(f"-> {out.relative_to(ROOT.parent)}")
 
 
 def adaptive_k(scores):
@@ -125,7 +125,7 @@ def cmd_answer(args):
                                "timing": {"embedding_ms": emb_ms, "retrieval_ms": r["latency_ms"],
                                           "generation_ms": out["latency_ms"]}, "usage": usage, "model": gen.model},
                               ensure_ascii=False, indent=1))
-    print(f"-> {res}")
+    print(f"-> {res.relative_to(ROOT.parent)}")
 
 
 def main():
