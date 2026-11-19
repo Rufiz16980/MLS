@@ -10,10 +10,10 @@ Shared notes for the team. Keep this folder up to date; it is the single place f
 | [setup/data-install.md](setup/data-install.md) | Install course data and the RAG venv (one script) |
 | [TODO.md](TODO.md) | Everything left to finish, with commands (report, video, hand-in, GitHub) |
 | [../submission/report/report.tex](../submission/report/report.tex) | **The report** (course template; PDF next to it; format checker PASS, 6-page body) |
-| [report/VIDEO_SCRIPT.md](report/VIDEO_SCRIPT.md) | **The video script**: 10 minutes, narration, slides, demo commands (`rag/extensions/demo_query.py`) |
+| [video/VIDEO_RUNBOOK.md](video/VIDEO_RUNBOOK.md) | **The video runbook**: step by step, what is on screen, the command, the expected output and the words to say (9:40) |
+| [video/slides.tex](video/slides.tex) | The 13 video slides (build with the course slides saved as `course.pdf` next to it) |
 | [report/report-video-notes.md](report/report-video-notes.md) | Key answers: the four task questions, the two video questions, report summary |
 | [report/latex/report.tex](report/latex/report.tex) | Alternative report draft written in parallel on the laptop (cross-check only) |
-| [video/VIDEO_SCRIPT.md](video/VIDEO_SCRIPT.md) | Alternative video script written in parallel on the laptop (cross-check only) |
 | [laptop/](laptop/) | Laptop-side docs: task answers, notes, requirements checklist, analysis scripts |
 | [report/README.md](report/README.md) | Report draft and the experiment log (every result with its command) |
 | [setup/cluster-workflow.md](setup/cluster-workflow.md) | What persists on the cluster, per-session routine |

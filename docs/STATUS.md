@@ -12,7 +12,7 @@ Last updated: 2026-11-18 (supersedes all earlier status text; history is in `doc
 | 4 | Our RAG change | DONE. Adaptive k: negative result, held-out dev check (E17, E19). |
 | 5 | End-to-end cost | DONE (derived, E18). |
 | 6 | Report | COMPLETE: `submission/report/report.tex` + PDF (format checker PASS, 6-page body, audited 2026-11-18, see `docs/AUDIT.md`). Needs your read-through, the final page (group ID, names, UUNs) and your AI-declaration wording. |
-| 7 | Video | SCRIPT COMPLETE: `docs/report/VIDEO_SCRIPT.md` (9:45, demo option A via `rag/extensions/demo_query.py`). Needs rehearsal and recording. |
+| 7 | Video | RUNBOOK AND SLIDES COMPLETE: `docs/video/VIDEO_RUNBOOK.md`, `docs/video/slides.tex` (9:40, demo option A via `rag/extensions/demo_query.py`). Needs rehearsal and recording. |
 | 8 | Hand-in package | `supplementary_code.zip` built and checked (28 files, our files only, no personal data); rebuild with `scripts/make_supplementary_zip.sh` after any code change. |
 | 9 | Individual review | NOT STARTED (needs the assigned report). |
 

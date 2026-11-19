@@ -38,4 +38,4 @@ Purpose: after the results are in, this is the study sheet for answering questio
 - E17 adaptive k: margin gate (AUC 0.72), tuned on practice labels only, frozen, tested on dev. No gain; even a perfect gate only about +0.05. Reason: 27-34% of its k = 1 picks are wrong, and a quarter of queries have no relevant record in the top 20.
 - E18 end to end at k = 5: about 5.4 s per spoken question with PyTorch ASR (generation 70%), 7.6 s with ours (half and half). Encoding + retrieval under 1%.
 - E19 dev replication (n = 27): 0.284 / 0.321 / 0.253 at k = 1 / 5 / 20; pooled n = 55: 0.267 / 0.294 / 0.273, all differences within 0.03 and not significant. Smallest detectable difference about 0.09.
-- Report: submission/report/report.tex (PDF next to it). Video: docs/report/VIDEO_SCRIPT.md. Demo: rag/extensions/demo_query.py (asr on the GPU, answer on the laptop).
+- Report: submission/report/report.tex (PDF next to it). Video: docs/video/VIDEO_RUNBOOK.md (slides: docs/video/slides.tex). Demo: rag/extensions/demo_query.py (asr on the GPU, answer on the laptop).

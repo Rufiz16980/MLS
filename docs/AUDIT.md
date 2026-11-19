@@ -11,7 +11,7 @@ This audit checks every course requirement against the report, video script and 
 
 **Deliverables checked.**
 - `submission/report/report.tex` and `report.pdf`.
-- `docs/report/VIDEO_SCRIPT.md`.
+- `docs/video/VIDEO_RUNBOOK.md` and `docs/video/slides.tex` (replaced the first video script on 2026-11-19).
 - `scripts/make_supplementary_zip.sh`, `submission/README.md` and the built `supplementary_code.zip`.
 - `overlay/` (the five kernel files and the RAG extensions).
 
@@ -70,14 +70,14 @@ This audit checks every course requirement against the report, video script and 
 | ELM rules: credits, key never shared | met | About 360 calls in total. The key exists only in the laptop's `rag/.env`; a scan of the whole repo history found no key. |
 
 ## 5. Video (submission requirements, 2026-11-16 announcement)
-| Requirement | State | Evidence in `docs/report/VIDEO_SCRIPT.md` |
+| Requirement | State | Evidence in `docs/video/VIDEO_RUNBOOK.md` |
 | --- | --- | --- |
-| At most 10 minutes | met in script | 9:45 target with a 15 s margin; each slot's narration is word-counted at about 130 words per minute. |
-| Presentation and demo up to 8 minutes | met in script | 0:00 to 7:45. |
-| A recorded run of the system, its input and output, configuration named, cuts made clear | met in script | Both demo stages, with the configuration said aloud and the loading wait cut and captioned. |
-| Final two minutes answer the two released questions, introduced as "Question 1" and "Question 2" | met in script | 7:45 to 9:45: main design choice, then how we checked, with the fast-math and 15-query examples. |
-| Screen recording with narration; no webcam, names, paths, account names or notifications | met in script | The script sets `PS1='$ '`, crops the GPU UUID, keeps `rag/.env` closed and has a checklist in section 4. |
-| MP4, neutral name, no author metadata | needs you | Upload checklist in section 4. |
+| At most 10 minutes | met in script | 9:40 target; each step's narration is word-counted at about 125 words per minute. |
+| Presentation and demo up to 8 minutes | met in script | 0:00 to 7:40. |
+| A recorded run of the system, its input and output, configuration named, cuts made clear | met in script | Both demo stages, with the configuration said aloud; the loading wait is paused and said aloud (caption optional). |
+| Final two minutes answer the two released questions, introduced as "Question 1" and "Question 2" | met in script | 7:40 to 9:40: main design choice, then how we checked, with the fast-math and 15-query examples. |
+| Screen recording with narration; no webcam, names, paths, account names or notifications | met in script | The runbook sets `PS1='$ '`, uses full-screen terminals, hides the GPU UUID and stderr, keeps `rag/.env` closed, and has a checklist in section 5. The demo prints paths relative to the course folder. |
+| MP4, neutral name, no author metadata | needs you | Checklist in section 5 of the runbook. |
 | Recorded and checked | needs you | Not recorded yet. `demo_query.py` has not yet run on real data, so do a rehearsal first. |
 
 ## 6. Optional code and anonymity

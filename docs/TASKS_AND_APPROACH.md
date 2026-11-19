@@ -35,7 +35,7 @@ Where files live: **source of truth** = `~/MLS/overlay/...` (our repo, branch `r
 | # | Task | State | Where |
 | --- | --- | --- | --- |
 | 16 | Group report (6-page body, supplied template, AI declaration on the final page) | Draft complete; placeholders on the last page | `submission/report/report.tex`, `references.bib`, template style files (unchanged), `report.pdf` |
-| 17 | Video (<= 10 min, demo, last 2 min = two questions) | Script ready, not recorded | `docs/report/VIDEO_SCRIPT.md` |
+| 17 | Video (<= 10 min, demo, last 2 min = two questions) | Runbook and slides ready, not recorded | `docs/video/VIDEO_RUNBOOK.md` |
 | 18 | Supplementary code (optional) | Zip builder ready (our files only, no history, personal-data check) | `scripts/make_supplementary_zip.sh`, `submission/README.md` |
 | 19 | Individual review of another group's report (30%) | Not started (needs the assigned report) | Learn |
 | 20 | Anonymity and hand-in | Neutral names `report.pdf`, `video.mp4`, `supplementary_code.zip`; names/UUN/Group ID only on the report's last page | see `docs/AUDIT.md` |

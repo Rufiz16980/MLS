@@ -6,7 +6,7 @@ Legend: [x] done, [ ] open. "You" = the owner. Commands run from the course chec
 - [x] ASR: four kernels correct (tests, sanitizers, exact transcript), ablations, same-job comparison with PyTorch (2.45x slower), profile, GEMM naive/ours/cuBLAS, hand-in outputs (`docs/outputs/`).
 - [x] RAG: baseline retrieval (practice 350, dev 125), depth sweep, answer quality vs k (practice n=28, dev n=27, pooled n=55), mechanism, adaptive k (negative, held-out checked), end-to-end cost.
 - [x] Report: `submission/report/report.tex` + `report.pdf` (course template, format checker PASS, 6-page body; audited 2026-11-18). Alternative laptop draft `docs/report/latex/` is a cross-check only.
-- [x] Video script: `docs/report/VIDEO_SCRIPT.md` (9:45, narration word-counted, demo option A with `rag/extensions/demo_query.py`). Alternative laptop script `docs/video/` is a cross-check only.
+- [x] Video runbook and slides: `docs/video/VIDEO_RUNBOOK.md` and `docs/video/slides.tex` (9:40, demo option A with `rag/extensions/demo_query.py`).
 - [x] Notes (`docs/report/report-video-notes.md`), 16 guide answers (`docs/laptop/TASK_ANSWERS.md`), audit (`docs/AUDIT.md`).
 - [x] ELM budget used: about 360 calls. No more calls are needed.
 
@@ -24,9 +24,9 @@ Legend: [x] done, [ ] open. "You" = the owner. Commands run from the course chec
 - [ ] Check anonymity: no names, UUN, repo link, personal paths in the body or appendix; PDF properties have no author; file name `report.pdf`.
 - [ ] Reconcile with your teammate's version (compare numbers, pick the better sections; keep one source of truth).
 
-## 3. Video (at most 10 minutes; script in `docs/report/VIDEO_SCRIPT.md`)
-- [x] Demo setup: option A, two stages with `rag/extensions/demo_query.py` (ASR with our kernels on the cluster GPU, then retrieval and answer on the laptop); commands in the video script, section 3.
-- [ ] Rehearse the demo commands once (video script section 3). `demo_query.py` has only been tested on stand-in modules, so the first real run is the rehearsal: pick the query, run `asr` on a GPU node, copy the JSON, run `answer --k 5` and `--k adaptive` (2 ELM calls).
+## 3. Video (at most 10 minutes; runbook in `docs/video/VIDEO_RUNBOOK.md`)
+- [x] Demo setup: option A, two stages with `rag/extensions/demo_query.py` (ASR with our kernels on the cluster GPU, then retrieval and answer on the laptop); commands in the runbook, steps 4 and 5.
+- [ ] Rehearse the demo once (runbook section 2D). The `answer` stage ran on the laptop with a stand-in generator; the `asr` stage has not yet run on the cluster. Query `q_a02dccd42055bf0e`; 2 ELM calls per run.
 - [ ] Record (OBS), cut loading waits and say so, last two minutes = Question 1 and Question 2, export `video.mp4`, check playback with sound, check no name/path/notification is visible.
 
 ## 4. Hand-in package
