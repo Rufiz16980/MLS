@@ -833,7 +833,7 @@ python rag/extensions/rank_groups.py --csv rag/results/aq_pooled_practice_dev_su
   - Oracle with k 1 or 5: +0.026 (-0.042, +0.094) at 0.70x the tokens.
   - On practice alone, the split the protocol used, the gate replays better with k = 20 (+0.009) than with k = 5 (-0.051). So the frozen choice of k = 20 was consistent with the protocol. The k = 5 variant is exploratory only, because choosing it from dev would tune on the test split.
 
-**What it means.** The coverage half of the mechanism is significant (pooled and on held-out dev). The dilution half has the right sign on both splits but is not significant. The report now says so, labels the grouping as post hoc, and gives the minimum detectable effect.
+**What it means.** The coverage half of the mechanism is significant when both splits are pooled (exact sign-flip p = 0.032); on held-out dev alone (n = 7) it is not (p = 0.125). See E23. The dilution half has the right sign on both splits but is not significant. The report now says so, labels the grouping as post hoc, and gives the minimum detectable effect.
 
 ## E21: Reading the zero-score answers that had the evidence in the prompt (no ELM calls)
 
@@ -865,3 +865,18 @@ python rag/extensions/rank_groups.py --csv rag/results/aq_pooled_practice_dev_su
 
 **What it means.** The judge is not deterministic at temperature 0, but most scores reproduce. Zeros rise because they cannot fall, so the 0.048 rise is partly regression towards the mean. The noise is already part of the per-query scores from which the intervals are computed. It does not change the pooled means in the report; the generator's own variability remains unmeasured.
 
+
+## E23: Exact tests for the small subgroups (no ELM calls; response to a second independent marking, 2026-11-20)
+
+**Need.** A percentile bootstrap is unreliable for 7 queries. Test the subgroup claims exactly. `rank_groups.py` section 2b now prints them (same command as E20).
+
+| claim | n | exact test (two-sided) |
+| --- | --- | --- |
+| dev, ranks 2-20, k20-k5 = -0.179 | 7 (three at -0.417, four unchanged) | sign-flip p = 0.250 |
+| dev, ranks 2-20, k5-k1 = +0.250 | 7 | sign-flip p = 0.125 |
+| pooled, ranks 2-20, k5-k1 = +0.149 | 19 | sign-flip p = 0.032 |
+| pooled, ranks 2-20, k20-k5 = -0.026 | 19 | sign-flip p = 0.777 |
+| k5-k1 effect, ranks 2-20 minus rank 1, pooled = +0.211 | 19 vs 23 | permutation p = 0.056 (bootstrap lower bound +0.009 to +0.024 depending on the seed) |
+| same, dev only = +0.319 | 7 vs 12 | permutation p = 0.012 |
+
+**What it means.** Only the pooled coverage effect is robust. The pooled interaction is borderline, the dev-only k20-k5 loss is not testable, and the report now says so (the dev interval is no longer quoted as evidence; "clear reasons" became "probably"). Per-depth split of the 36 zero-score answers read in E21 (judge error / extra content / real miss / unclear): k = 1: 3 / 1 / 2 / 0; k = 5: 4 / 3 / 4 / 0; k = 20: 5 / 4 / 8 / 2. The extra-content zeros rise with depth, so the rank-1 loss may be partly a judge effect; the report names this alternative. Also corrected: the k = 20 arm was fixed in E17, before any answer was judged; the replay on practice that favours it (E20) came later.

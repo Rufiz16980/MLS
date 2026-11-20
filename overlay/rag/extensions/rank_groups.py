@@ -6,6 +6,8 @@ for the policy replays, adaptive_k.json. Reports, with paired bootstrap 95% inte
      (rank 1; ranks 2-20; none in the top 20), per split and pooled, and the difference between
      the k5-k1 effects of the ranks 2-20 and rank-1 groups;
   2. how many answers score 0 although a relevant record was in the prompt;
+  2b. exact tests for the small groups (sign-flip test for a paired effect, permutation test for the
+     difference between the k5-k1 effects of the two groups), because the bootstrap is unreliable at n = 7;
   3. power: the paired SD, interval half-width and the 80%-power minimum detectable effect;
   4. replays of the depth gate and of the oracle with the high arm k = 20 (the fixed protocol)
      or k = 5 (exploratory sensitivity check, not part of the protocol).
@@ -17,6 +19,7 @@ In the supplementary zip both files are under outputs/rag/.
 import argparse
 import csv
 import json
+import itertools
 import numpy as np
 
 
@@ -33,6 +36,26 @@ def ci_diff_of_means(a, b, n_boot, seed):
     mb = b[rng.integers(0, len(b), size=(n_boot, len(b)))].mean(axis=1)
     d = ma - mb
     return float(a.mean() - b.mean()), float(np.percentile(d, 2.5)), float(np.percentile(d, 97.5))
+
+
+def signflip_p(d):
+    """Exact two-sided sign-flip test of mean = 0 over the non-zero paired differences."""
+    nz = np.asarray([x for x in d if x != 0], dtype=np.float64)
+    if len(nz) == 0:
+        return 1.0
+    obs, mag = abs(nz.sum()), np.abs(nz)
+    hits = sum(abs((np.array(sg) * mag).sum()) >= obs - 1e-12 for sg in itertools.product((1, -1), repeat=len(nz)))
+    return hits / 2 ** len(nz)
+
+
+def permutation_p(a, b, n=200000, seed=0):
+    """Two-sided permutation test for a difference of means."""
+    a, b = np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)
+    obs, x, rng, hits = abs(a.mean() - b.mean()), np.concatenate([a, b]), np.random.default_rng(seed), 0
+    for _ in range(n):
+        rng.shuffle(x)
+        hits += abs(x[:len(a)].mean() - x[len(a):].mean()) >= obs - 1e-12
+    return (hits + 1) / (n + 1)
 
 
 def group(q):
@@ -73,6 +96,15 @@ def main():
     r1_grp = [q[5]["score"] - q[1]["score"] for q in qs.values() if group(q) == "rank 1"]
     m, lo, hi = ci_diff_of_means(lo_grp, r1_grp, B, seed)
     print(f"pooled k5-k1 effect, ranks 2-20 minus rank 1: {m:+.3f} ({lo:+.3f}, {hi:+.3f})")
+
+    print("\n2b. Exact tests (two-sided): sign-flip p for the paired effect, permutation p for the group difference")
+    for split in ("dev", "pooled"):
+        lo = [q for (sp, _), q in qs.items() if group(q) == "ranks 2-20" and split in (sp, "pooled")]
+        r1 = [q for (sp, _), q in qs.items() if group(q) == "rank 1" and split in (sp, "pooled")]
+        d = lambda L, a, b: [q[a]["score"] - q[b]["score"] for q in L]
+        print(f"{split}, ranks 2-20 (n={len(lo)}): k5-k1 sign-flip p = {signflip_p(d(lo, 5, 1)):.3f}; "
+              f"k20-k5 sign-flip p = {signflip_p(d(lo, 20, 5)):.3f}; k5-k1 effect, ranks 2-20 vs rank 1: "
+              f"permutation p = {permutation_p(d(lo, 5, 1), d(r1, 5, 1)):.3f}")
 
     print("\n2. Answers scoring 0 although a relevant record was in the prompt")
     for k in (1, 5, 20):
